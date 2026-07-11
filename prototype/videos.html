@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>回响 · 视频列表</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/lxgwwenkaiscreen.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="page.js"></script>
+<script>
+/* 视频列表（某个合集下的单视频）—— ?coll=c1；点一行 → parse.html?v=<id>
+   底部：看这个合集的跨视频合成 → synthesis.html?coll=<id> */
+const cid=qp('coll','c1'); const c=COLLS[cid];
+const rows=c.videos.map((vid,i)=>{const v=VIDEOS[vid];const has=v.nodes.some(n=>n.echo);
+  return `<a class="vrow" href="parse.html?v=${vid}">
+    <span class="no">${String(i+1).padStart(2,'0')}</span>
+    <span>
+      <div class="t">${v.title}${has?'<span class="sp">✦ 回响</span>':''}</div>
+      <div class="m">${v.cr}</div>
+    </span>
+    <span class="dur">${v.dur}</span>
+  </a>`;}).join('');
+const main=`
+  ${backlink(c.cat,`collections.html?cat=${CATS.find(x=>x.colls.includes(cid)).id}`)}
+  <div class="kick">${c.cat} · 合集</div>
+  <h1 class="display">${c.name}</h1>
+  <div class="dmeta">${c.videos.length} 条视频${c.echo?` · <span class="gold">✦ ${c.echo} 回响</span>`:''}</div>
+  <div style="margin-top:48px">${rows}</div>
+  <a class="cta" href="synthesis.html?coll=${cid}">看这个合集的跨视频合成 →</a>`;
+mount(doc(main));
+</script>
+</body>
+</html>

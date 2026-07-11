@@ -1,0 +1,53 @@
+/* ================================================================
+   回响 · 设计令牌
+   内页令牌见 docs/design-language.md（v3 阅读仪器，原样保留）。
+   地图令牌新增于 PRD V1.2 §5.3.2/§5.3.6：明亮 2.5D，白色产品壳，
+   暖金只属于回响，不与地图基调竞争。
+   ================================================================ */
+:root{
+  /* 阅读仪器 · 内页（design-language.md，不改） */
+  --bg:#faf9f6; --bg-soft:#f3f1ea;
+  --ink:#1c1a16; --ink-2:#57534a; --ink-3:#9b958a;
+  --rule:#e6e2d9;
+  --amber:#a87b24; --amber-hot:#d9a93f; --amber-wash:rgba(233,196,106,.4);
+  --deep:#5a6f8c; --gap:#5d7d68; --yes:#3e6b4c; --no:#a34a32;
+
+  /* 字体族收敛到 2+mono（v3.1）：宋=标题/问题，黑=其余一切，mono 只给纯数字/ASCII。
+     mono 栈补黑体兜底：中文误入 mono 时不再回退 SimSun。 */
+  --serif:"Noto Serif SC","Source Han Serif SC","Songti SC",Georgia,ui-serif,serif;
+  --sans:"Noto Sans SC",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Consolas,Menlo,"Noto Sans SC","Microsoft YaHei",monospace;
+
+  /* 地图 · 明亮 2.5D（PRD §5.3.2，正向关键词：bright / airy / soft pastel / gold accent only for echo） */
+  --map-paper:#f7f5ee;
+  --map-paper-warm:#f1ede2;
+  --map-sky-top:#edf7f5;
+  --map-sky-bottom:#f7f4ea;
+  --map-ocean:#cbe5e3;
+  --map-ocean-light:#e2f1ef;
+  --map-ocean-deep:#9fc9c8;
+  --map-water-line:rgba(72,128,128,.22);
+  --map-sand:#eee4ca;
+  --map-sand-light:#f8f1de;
+  --map-earth-side:#cdbd96;
+  --map-earth-deep:#aa9672;
+  --map-land-shadow:rgba(80,91,74,.18);
+  --map-region-eco:#b9d3b7;     /* 低饱和草绿 */
+  --map-region-eco-light:#dbe8d3;
+  --map-region-eco-line:#729678;
+  --map-region-his:#d7c8df;     /* 浅紫 */
+  --map-region-his-light:#ebe1ee;
+  --map-region-his-line:#a28caf;
+  --map-region-tech:#bfd5e5;    /* 浅蓝 */
+  --map-region-tech-light:#dce9f0;
+  --map-region-tech-line:#7f9fb8;
+  --map-foliage:#739778;
+  --map-foliage-dark:#57775d;
+  --map-rock:#b7ad99;
+  --map-structure:#817a6a;
+  --map-fog:rgba(255,255,255,.64);
+  --map-ink:#3e453e;
+  --map-ink-soft:#777b70;
+  --map-border:rgba(77,94,83,.17);
+  --map-shadow:rgba(67,83,72,.16);
+}

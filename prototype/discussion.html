@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>回响 · 讨论区</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/lxgwwenkaiscreen.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="page.js"></script>
+<script>
+/* 讨论区 gated（愿景层）—— ?coll=c1；门槛=观看史；两周内只 seed + roadmap */
+const cid=qp('coll','c1'); const d=DISCUSS[cid]||DISCUSS.c1;
+const seeds=d.seeds.map(c=>`<div class="cmt"><div class="who">${c.who}<span class="bd">${c.bd}</span></div><div class="body">${c.body}</div></div>`).join('');
+const main=`
+  ${backlink('合成',`synthesis.html?coll=${cid}`)}
+  <div class="kick">就这个话题</div>
+  <h1 class="display">${d.topic}</h1>
+  <div class="lockline" style="margin-top:22px">🔒 在这个世界刷够了才能发言 · 你已解锁</div>
+  <div style="margin-top:20px">${seeds}</div>
+  <div class="compose"><input placeholder="说说你的判断…"><button class="send" type="button">发送 ↑</button></div>
+  <div class="vnote">＊ 愿景层：真实社区需临界规模，两周内只 seed + roadmap。门槛 = 观看史。</div>`;
+mount(doc(main));
+</script>
+</body>
+</html>

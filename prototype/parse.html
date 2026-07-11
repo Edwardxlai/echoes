@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>回响 · 单视频解析页</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/lxgwwenkaiscreen.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="page.js"></script>
+<script>
+/* 单视频解析页 —— 两块式：① 脉络（节点默认墨点，发光节点=回响，收在节点里）② 继续想
+   ?v=v1 指定视频；发光节点里的「跳过去看」→ parse.html?v=<关联视频> */
+const vid=qp('v','v1'); const v=VIDEOS[vid];
+const echoCount=v.nodes.filter(n=>n.echo).length;
+const nodes=v.nodes.map((n,i)=>{
+  const e=n.echo;
+  const echoIn=e?`<div class="echoIn">
+      <div class="er">✦ 跟你看过的《${e.pt}》${e.rel}</div>
+      <div class="ef">${e.full}</div>
+      ${e.to?`<span class="ejump" data-to="${e.to}">跳过去看《${e.pt}》 →</span>`
+            :`<div class="esrc">来自你看过的《${e.pt}》· ${e.cr} · ${e.ts}</div>`}
+    </div>`:'';
+  const label=e?`<span class="hl">${n.label}</span><span class="sp">✦ 回响</span>`:n.label;
+  return `<div class="node ${e?'glow':''}" data-i="${i}">
+    <span class="ts">${n.ts}</span><span class="dot"></span>
+    <div class="nbody">
+      <div class="nlabel">${label}</div>
+      <div class="detail"><div class="dtext">${n.d}</div>${echoIn}</div>
+    </div></div>`;
+}).join('');
+const thinks=(THINK[vid]||THINK_FALLBACK).map((t,i)=>`<div class="think">
+   <span class="tno">${String(i+1).padStart(2,'0')}</span>
+   <div class="tbody">
+     <div class="tk ${t.kind==='往深想'?'deep':'gap'}">${t.kind}</div>
+     <div class="tq">${t.q}</div>
+     <div class="tframe"><div class="tframe-in">${t.f}</div></div>
+   </div></div>`).join('');
+const main=`
+  ${backlink(COLLS[v.coll].name,`videos.html?coll=${v.coll}`)}
+  <div class="kick">这条在回答</div>
+  <h1 class="display">${v.q}</h1>
+  <div class="dmeta">${v.cr} · ${v.dur} · ${v.nodes.length} 个节点${echoCount?` · <span class="gold">✦ ${echoCount} 回响</span>`:''}</div>
+  <div class="sh" id="sec-spine"><span class="no">壹</span><span class="tt">脉络</span><span class="hint">发光的节点里，有你看过的在回响</span></div>
+  <div class="spine">${nodes}</div>
+  <div class="sh" id="sec-think"><span class="no">贰</span><span class="tt">继续想</span><span class="hint">视频没讲的，和你能补的</span></div>
+  <div class="thint">选一个方向顺着往下想 —— AI 只递入口，不替你想</div>
+  ${thinks}`;
+const s=mount(doc(main));
+s.querySelectorAll('.node').forEach(el=>{
+  el.onclick=()=>el.classList.toggle('open');
+  const j=el.querySelector('.ejump'); if(j) j.onclick=(ev)=>{ev.stopPropagation();location.href='parse.html?v='+j.dataset.to;};
+});
+s.querySelectorAll('.think').forEach(el=>el.onclick=()=>el.classList.toggle('open'));
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "echoes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "回响 · 解析+ASR+AI理解 管线测评",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "server": "node eval/server.mjs",
+    "sidecar:stop": "docker stop parse-video"
+  }
+}

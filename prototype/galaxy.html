@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>回响 · 库星图（3D 样张）</title>
+<style>
+  :root{
+    --serif:Georgia,"Songti SC","SimSun",ui-serif,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:#04050a;overflow:hidden;font-family:var(--sans);color:#e8edf5}
+  #graph{position:fixed;inset:0}
+  #brand{position:absolute;top:calc(env(safe-area-inset-top) + 20px);left:24px;z-index:5;
+    font-family:var(--serif);font-size:22px;letter-spacing:.34em;text-indent:.34em;opacity:.95;
+    pointer-events:none;text-shadow:0 0 22px rgba(244,196,120,.4)}
+  #tag{position:absolute;top:calc(env(safe-area-inset-top) + 54px);left:25px;z-index:5;font-size:11.5px;
+    letter-spacing:.05em;color:#8b96a8;pointer-events:none}
+  #legend{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 22px);left:0;right:0;z-index:5;
+    text-align:center;font-size:11px;color:#5b6577;pointer-events:none;transition:opacity .6s}
+  #legend b{color:#f4c478;font-weight:400}
+  #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:8;
+    color:#8b96a8;font-size:13px;letter-spacing:.1em}
+  #fab{position:absolute;right:20px;bottom:calc(env(safe-area-inset-bottom) + 22px);z-index:6;width:54px;height:54px;
+    border-radius:50%;border:1px solid rgba(244,196,120,.4);color:#f4c478;font-size:27px;line-height:52px;text-align:center;
+    background:radial-gradient(circle at 50% 42%,rgba(244,196,120,.22),rgba(244,196,120,.05) 70%,transparent);backdrop-filter:blur(2px)}
+  #card{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 58px);transform:translateX(-50%) translateY(20px);
+    z-index:7;min-width:230px;max-width:86vw;background:rgba(10,14,22,.74);backdrop-filter:blur(16px);
+    border:1px solid rgba(150,165,190,.16);border-radius:16px;padding:16px 18px;opacity:0;pointer-events:none;
+    transition:opacity .3s,transform .3s;box-shadow:0 20px 60px rgba(0,0,0,.55)}
+  #card.in{opacity:1;transform:translateX(-50%) translateY(0)}
+  #card .w{font-size:11px;letter-spacing:.1em;color:#8b96a8;margin-bottom:6px}
+  #card .t{font-family:var(--serif);font-size:19px;color:#f2f5fa;line-height:1.4}
+  #card .t.gold{color:#f7dca8}
+  #card .r{font-size:12.5px;color:#f4c478;line-height:1.55;margin-top:10px}
+  #card .go{margin-top:13px;font-size:13px;color:#e8edf5;border:1px solid rgba(150,165,190,.2);border-radius:10px;padding:9px 0;text-align:center}
+</style>
+</head>
+<body>
+<div id="graph"></div>
+<div id="brand">回响</div>
+<div id="tag">你的观看史，是一片会发光的星云</div>
+<div id="legend">拖动旋转你的知识宇宙 · 点一颗亮星看它<b>怎么连着你看过的东西</b></div>
+<div id="loading">正在点亮星云…</div>
+<div id="fab">＋</div>
+<div id="card"><div class="w" id="cw"></div><div class="t" id="ct"></div><div class="r" id="cr"></div><div class="go">进入解析 →</div></div>
+
+<script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three-spritetext@1.8.2/dist/three-spritetext.min.js"></script>
+<script src="https://unpkg.com/3d-force-graph@1.73.0/dist/3d-force-graph.min.js"></script>
+<script>
+/* ---------- 种子数据 ---------- */
+const WORLDS=[
+  {id:'w0', name:'经济世界', hue:190},   // 冷青
+  {id:'w1', name:'历史世界', hue:265},   // 靛紫
+  {id:'w2', name:'科技世界', hue:222},   // 蓝
+];
+const HUBS=[
+  {w:'w0',label:'通胀到底是谁的锅',glow:true, rel:'跟你看过的《央行加息在加什么》唱反调'},
+  {w:'w0',label:'央行加息在加什么',glow:false},
+  {w:'w0',label:'为什么工资涨了还是变穷',glow:true, rel:'把《通胀》一笔带过的“代价”讲透了'},
+  {w:'w1',label:'赤壁之战的另一种真相',glow:true, rel:'和你看过的《三国里的瘟疫》互相印证'},
+  {w:'w1',label:'诸葛亮被高估了吗',glow:false},
+  {w:'w2',label:'AI 不会抢你工作',glow:true, rel:'和《被 AI 取代的第一批人》正面对撞'},
+  {w:'w2',label:'被 AI 取代的第一批人',glow:false},
+];
+const HUE={w0:190,w1:265,w2:222};
+
+// 构建节点：hub（有名字的视频）+ filler（无名微粒，制造星云密度）
+const nodes=[], links=[];
+HUBS.forEach((h,i)=>nodes.push({id:'h'+i, w:h.w, label:h.label, glow:h.glow, rel:h.rel, hub:true, val:h.glow?9:6}));
+WORLDS.forEach(wd=>{
+  for(let i=0;i<26;i++) nodes.push({id:wd.id+'f'+i, w:wd.id, hub:false, val:Math.random()*1.6+.6});
+});
+// 世界内连线（把同世界节点织成网）
+WORLDS.forEach(wd=>{
+  const mem=nodes.filter(n=>n.w===wd.id);
+  mem.forEach((n,i)=>{ // 每个点连 2 个同世界随机点
+    for(let k=0;k<2;k++){const t=mem[(i+1+Math.floor(Math.random()*(mem.length-1)))%mem.length];
+      if(t&&t.id!==n.id) links.push({source:n.id,target:t.id,gold:false,hue:wd.hue});}
+  });
+});
+// 跨世界“回响”金线：glow hub → 别的世界的一个 hub
+const glowHubs=nodes.filter(n=>n.hub&&n.glow);
+const allHubs=nodes.filter(n=>n.hub);
+glowHubs.forEach(g=>{const others=allHubs.filter(n=>n.w!==g.w);
+  const t=others[Math.floor(Math.random()*others.length)];
+  if(t) links.push({source:g.id,target:t.id,gold:true});});
+
+/* ---------- 发光贴图 ---------- */
+function glowTexture(rgb){
+  const cv=document.createElement('canvas');cv.width=cv.height=128;const g=cv.getContext('2d');
+  const grd=g.createRadialGradient(64,64,0,64,64,64);
+  grd.addColorStop(0,`rgba(${rgb},1)`);grd.addColorStop(.25,`rgba(${rgb},.8)`);
+  grd.addColorStop(.5,`rgba(${rgb},.28)`);grd.addColorStop(1,`rgba(${rgb},0)`);
+  g.fillStyle=grd;g.fillRect(0,0,128,128);return new THREE.CanvasTexture(cv);
+}
+function hueToRgb(hue,light){const c=new THREE.Color();c.setHSL(hue/360,.65,light);return `${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)}`;}
+const GOLD='247,205,130';
+const texCache={};
+function tex(rgb){return texCache[rgb]||(texCache[rgb]=glowTexture(rgb));}
+
+/* ---------- 图 ---------- */
+const Graph = ForceGraph3D()(document.getElementById('graph'))
+  .backgroundColor('#04050a')
+  .graphData({nodes,links})
+  .nodeRelSize(1)
+  .nodeThreeObject(n=>{
+    const group=new THREE.Group();
+    const rgb = n.glow ? GOLD : hueToRgb(HUE[n.w], n.hub?.8:.75);
+    const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex(rgb),blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));
+    const s=(n.hub?(n.glow?26:18):8)+n.val;
+    sprite.scale.set(s,s,1);
+    group.add(sprite);
+    if(n.hub){
+      const st=new SpriteText(n.label);
+      st.color=n.glow?'rgba(247,224,176,.96)':'rgba(200,212,228,.62)';
+      st.textHeight=n.glow?4.2:3.4; st.fontFace='PingFang SC, sans-serif';
+      st.position.set(0,-(s*0.6+6),0);
+      group.add(st);
+    }
+    group.__glow=n.glow; group.__sprite=sprite; group.__base=s;
+    return group;
+  })
+  .linkColor(l=>l.gold?'rgba(247,205,130,0.55)':`hsla(${l.hue},70%,60%,0.16)`)
+  .linkWidth(l=>l.gold?0.6:0.25)
+  .linkOpacity(0.5)
+  .linkDirectionalParticles(l=>l.gold?3:0)
+  .linkDirectionalParticleSpeed(0.006)
+  .linkDirectionalParticleWidth(1.6)
+  .linkDirectionalParticleColor(()=> 'rgba(247,205,130,0.95)')
+  .enableNodeDrag(false)
+  .onNodeClick(n=>{ if(!n.hub){hideCard();return;} showCard(n); flyTo(n); })
+  .onBackgroundClick(hideCard);
+
+// 力参数：松一点，铺开成星云
+Graph.d3Force('charge').strength(-90);
+Graph.d3Force('link').distance(l=>l.gold?120:34);
+
+// 缓慢自转（Orbit + autoRotate）——看着不晕
+Graph.controls().autoRotate = true;
+Graph.controls().autoRotateSpeed = 0.55;
+
+// 初始相机拉远一点
+Graph.cameraPosition({z: 420});
+
+// 呼吸：让 glow 节点微微脉动
+let t=0;
+(function pulse(){ t+=0.03;
+  Graph.scene().traverse(o=>{ if(o.__glow&&o.__sprite){const k=1+0.12*Math.sin(t);o.__sprite.scale.set(o.__base*k,o.__base*k,1);} });
+  requestAnimationFrame(pulse);
+})();
+
+// 载入完成
+setTimeout(()=>{const l=document.getElementById('loading'); if(l) l.style.display='none';}, 800);
+window.addEventListener('load',()=>{const l=document.getElementById('loading'); if(l) l.style.display='none';});
+
+/* ---------- 卡片 & 交互 ---------- */
+function flyTo(n){
+  const d=180, r=Math.hypot(n.x,n.y,n.z)||1;
+  Graph.cameraPosition({x:n.x*(1+d/r), y:n.y*(1+d/r), z:n.z*(1+d/r)}, n, 900);
+}
+function showCard(n){
+  document.getElementById('cw').textContent = WORLDS.find(w=>w.id===n.w).name;
+  const ct=document.getElementById('ct'); ct.textContent=n.label; ct.className='t'+(n.glow?' gold':'');
+  document.getElementById('cr').innerHTML = n.glow?('✦ '+n.rel):'';
+  document.getElementById('card').classList.add('in');
+  document.getElementById('legend').style.opacity=0;
+}
+function hideCard(){document.getElementById('card').classList.remove('in');}
+document.getElementById('fab').onclick=()=>{hideCard();
+  // 演示：导入新合集 = 相机拉远一点点，示意“又长出一片”
+  Graph.cameraPosition({z:460},undefined,700);
+};
+addEventListener('resize',()=>Graph.width(innerWidth).height(innerHeight));
+</script>
+</body>
+</html>

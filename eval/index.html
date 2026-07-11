@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>回响 · 解析+ASR 管线测评</title>
+<style>
+  :root{
+    --bg:#0a0d13; --panel:#121826; --line:rgba(150,165,190,.14);
+    --ink:#e6ebf3; --dim:#8a95a8; --faint:#5a6579;
+    --gold:#f2c078; --ok:#5bd6a0; --fail:#f27a7a; --run:#6b97ec;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:radial-gradient(120% 90% at 50% -10%,#111827,#0a0d13 60%);color:var(--ink);
+    font-family:var(--sans);min-height:100vh;padding:40px 20px}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:19px;font-weight:600;letter-spacing:.02em}
+  h1 .g{color:var(--gold)}
+  .sub{color:var(--dim);font-size:13px;margin-top:6px;line-height:1.6}
+  .health{margin-top:14px;font-size:12px;color:var(--faint);font-family:var(--mono);
+    display:flex;gap:16px;flex-wrap:wrap}
+  .health b{color:var(--dim);font-weight:400}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  .dot.y{background:var(--ok)}.dot.n{background:var(--fail)}
+
+  .box{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+  textarea{width:100%;min-height:76px;resize:vertical;background:#0b0f18;border:1px solid var(--line);
+    border-radius:11px;color:var(--ink);font-family:var(--mono);font-size:13px;padding:12px 14px;outline:none;line-height:1.5}
+  textarea:focus{border-color:rgba(242,192,120,.4)}
+  textarea::placeholder{color:var(--faint)}
+  .row{display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap}
+  button{background:linear-gradient(160deg,#f6d79b,var(--gold));color:#1a130a;border:none;cursor:pointer;
+    font-weight:600;font-size:14px;padding:11px 22px;border-radius:11px;transition:transform .15s,opacity .15s}
+  button:hover{transform:translateY(-1px)}button:active{transform:scale(.97)}
+  button:disabled{opacity:.5;cursor:default;transform:none}
+  .eg{font-size:12px;color:var(--faint)}
+  .eg a{color:var(--dim);cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+
+  .steps{margin-top:20px;display:none}
+  .steps.show{display:block}
+  .step{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid rgba(150,165,190,.07)}
+  .step:last-child{border-bottom:none}
+  .ico{width:22px;height:22px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:12px;font-weight:700}
+  .ico.ok{background:rgba(91,214,160,.16);color:var(--ok)}
+  .ico.fail{background:rgba(242,122,122,.16);color:var(--fail)}
+  .ico.run{background:rgba(107,151,236,.16);color:var(--run)}
+  .ico.wait{background:rgba(138,149,168,.12);color:var(--faint)}
+  .ico.run::after{content:"";width:11px;height:11px;border:2px solid currentColor;border-right-color:transparent;
+    border-radius:50%;animation:spin .7s linear infinite}
+  .ico.run{color:var(--run)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .st-name{font-size:14px;flex:none;width:150px}
+  .st-detail{font-size:12.5px;color:var(--dim);font-family:var(--mono);flex:1;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .step.fail .st-detail{color:var(--fail);white-space:normal}
+  .st-ms{font-size:11px;color:var(--faint);font-family:var(--mono);flex:none}
+
+  .result{margin-top:20px;display:none}
+  .result.show{display:block}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--dim);margin-bottom:12px}
+  .meta b{color:var(--ink);font-weight:500}
+  .tlabel{font-size:12px;color:var(--faint);letter-spacing:.08em;margin-bottom:8px}
+  .transcript{background:#0b0f18;border:1px solid var(--line);border-radius:12px;padding:16px;
+    font-size:14px;line-height:1.85;max-height:340px;overflow:auto;white-space:pre-wrap}
+  .flowbox{background:linear-gradient(180deg,rgba(242,192,120,.05),transparent),#0b0f18;
+    border:1px solid rgba(242,192,120,.22);border-radius:14px;padding:18px}
+  .cq{font-size:16px;font-weight:600;line-height:1.5;color:#f8ead0}
+  .csum{font-size:13px;color:var(--dim);margin-top:8px;line-height:1.6}
+  .nodes{margin-top:16px;display:flex;flex-direction:column;gap:2px}
+  .node{display:flex;gap:13px;position:relative;padding-bottom:16px}
+  .node:not(:last-child)::before{content:"";position:absolute;left:13px;top:26px;bottom:0;width:1px;
+    background:linear-gradient(var(--gold),rgba(242,192,120,.15))}
+  .nidx{width:26px;height:26px;flex:none;border-radius:50%;background:rgba(242,192,120,.14);
+    color:var(--gold);font-size:13px;font-weight:700;display:grid;place-items:center;z-index:1}
+  .nbody{flex:1;min-width:0;padding-top:2px}
+  .nconcept{font-size:14.5px;font-weight:600;color:var(--ink)}
+  .nts{font-size:11px;color:var(--faint);font-family:var(--mono);font-weight:400;margin-left:6px}
+  .ndetail{font-size:13px;color:var(--dim);line-height:1.65;margin-top:5px}
+  .takelabel{font-size:11px;color:var(--faint);letter-spacing:.08em;margin:6px 0 8px}
+  .takeaways{margin:0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.75}
+  .vlist{background:#0b0f18;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .vrow{display:flex;align-items:center;gap:11px;padding:11px 14px;border-bottom:1px solid rgba(150,165,190,.07)}
+  .vrow:last-child{border-bottom:none}
+  .vn{width:20px;flex:none;text-align:right;font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .vd{flex:1;min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pill{flex:none;font-size:11px;font-family:var(--mono);padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .pill.ok{background:rgba(91,214,160,.14);color:var(--ok)}
+  .pill.fail{background:rgba(242,122,122,.14);color:var(--fail)}
+  .pill.wait{background:rgba(138,149,168,.1);color:var(--faint)}
+  .vcard{margin-top:14px}
+  .vtitle{font-size:13.5px;color:var(--dim);margin-bottom:8px;padding-left:2px}
+  .banner{padding:12px 16px;border-radius:11px;font-size:13.5px;margin-top:18px;display:none}
+  .banner.show{display:block}
+  .banner.ok{background:rgba(91,214,160,.1);border:1px solid rgba(91,214,160,.3);color:var(--ok)}
+  .banner.fail{background:rgba(242,122,122,.1);border:1px solid rgba(242,122,122,.3);color:var(--fail)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>回响 · <span class="g">解析 + ASR</span> 管线测评</h1>
+  <p class="sub">粘一条抖音<b>单视频</b>或<b>合集</b>分享链接（或直链 mp4）。单视频走「解析→下载→ASR→AI 脉络」；合集先 f2 枚举出全部视频，再逐条走同一管线（<b>默认全量</b>，多条并发）。<br>纯测评，不落库。</p>
+  <div class="health" id="health">读取环境…</div>
+
+  <div class="box">
+    <textarea id="input" placeholder="粘贴抖音分享文案 / 链接，例如：&#10;7.xx 复制打开抖音，看看【xxx】的作品 https://v.douyin.com/xxxxxx/&#10;或直接一个 .mp4 直链；也可一次粘贴多条链接（自动逐条解析）"></textarea>
+    <div class="row">
+      <button id="run">跑一遍</button>
+      <span class="eg">没链接？可先用 <a id="egLink">一个测试直链</a> 单测 下载+ffmpeg+ASR（跳过 sidecar）</span>
+    </div>
+  </div>
+
+  <div class="steps" id="steps"></div>
+  <div class="banner" id="banner"></div>
+
+  <div class="result" id="result">
+    <div class="meta" id="meta"></div>
+    <div id="flow"></div>
+    <div id="rawwrap">
+      <div class="tlabel" style="margin-top:22px">ASR 转出的原始文字</div>
+      <div class="transcript" id="transcript"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STEP_NAMES = ["抠取链接","识别平台","解析直链","下载视频","抽音频 (ffmpeg)","ASR 转写 (火山豆包)","AI 理解 (DeepSeek)"];
+const $ = (id)=>document.getElementById(id);
+
+fetch("/api/health").then(r=>r.json()).then(h=>{
+  $("health").innerHTML =
+    `<span><b>ffmpeg:</b> ${h.ffmpeg}</span>`+
+    `<span><b>parse-video:</b> ${h.parseVideoApi}</span>`+
+    `<span><span class="dot ${h.volcConfigured?'y':'n'}"></span>火山 ASR ${h.volcConfigured?'已配置':'未配置'}</span>`+
+    `<span><span class="dot ${h.deepseekConfigured?'y':'n'}"></span>DeepSeek ${h.deepseekConfigured?'已配置':'未配置'}</span>`;
+}).catch(()=>{ $("health").textContent="环境读取失败"; });
+
+$("egLink").onclick = ()=>{
+  $("input").value = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
+};
+
+function renderSteps(states){
+  $("steps").classList.add("show");
+  $("steps").innerHTML = STEP_NAMES.map((name,i)=>{
+    const s = states[i] || {status:"wait"};
+    const cls = s.status;
+    const mark = cls==="ok"?"✓":cls==="fail"?"✕":"";
+    return `<div class="step ${cls}">
+      <div class="ico ${cls}">${mark}</div>
+      <div class="st-name">${name}</div>
+      <div class="st-detail">${s.detail||""}</div>
+      <div class="st-ms">${s.ms!=null?s.ms+"ms":""}</div>
+    </div>`;
+  }).join("");
+}
+
+const esc = (s)=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function renderFlow(a){
+  if(!a) return "";
+  const nodes = (a.backbone||[]).map((n,i)=>`
+    <div class="node">
+      <div class="nidx">${i+1}</div>
+      <div class="nbody">
+        <div class="nconcept">${esc(n.concept)} ${n.timestamp?`<span class="nts">${esc(n.timestamp)}</span>`:""}</div>
+        <div class="ndetail">${esc(n.detail)}</div>
+      </div>
+    </div>`).join("");
+  const takeaways = (a.takeaways||[]).map(t=>`<li>${esc(t)}</li>`).join("");
+  return `
+    <div class="tlabel" style="margin-top:20px">AI 理解 · 瘦脉络</div>
+    <div class="flowbox">
+      <div class="cq">${esc(a.core_question)}</div>
+      ${a.summary?`<div class="csum">${esc(a.summary)}</div>`:""}
+      <div class="nodes">${nodes}</div>
+      ${takeaways?`<div class="takelabel">可判断 / 可表达</div><ul class="takeaways">${takeaways}</ul>`:""}
+    </div>`;
+}
+
+function renderMix(data){
+  const en = (data.steps||[]).find(s=>s.name.indexOf("枚举合集")===0) || {status:"wait"};
+  $("steps").classList.add("show");
+  $("steps").innerHTML = `<div class="step ${en.status}">
+    <div class="ico ${en.status}">${en.status==="ok"?"✓":en.status==="fail"?"✕":""}</div>
+    <div class="st-name">枚举合集 (f2)</div>
+    <div class="st-detail">${esc(en.detail||"")}</div>
+    <div class="st-ms">${en.ms!=null?en.ms+"ms":""}</div></div>`;
+
+  if((!data.videos||!data.videos.length)){
+    $("banner").textContent = `✕ 合集枚举失败：${esc(data.error||en.detail||"")}`;
+    $("banner").classList.add("show","fail"); return;
+  }
+  $("banner").textContent = `${data.ok?"✓":"⚠"} 合集 —— ${esc(data.summary||"")}`;
+  $("banner").classList.add("show", data.ok?"ok":"fail");
+
+  const rows = (data.videos||[]).map((v,i)=>{
+    const p = (data.processed||[]).find(x=>x.aweme_id===v.aweme_id);
+    const badge = p ? (p.ok
+        ? `<span class="pill ok">✓ ${p.nodeCount}节点·${p.transcriptLen}字</span>`
+        : `<span class="pill fail" title="${esc(p.error)}">✕ 失败</span>`)
+      : `<span class="pill wait">未解析</span>`;
+    return `<div class="vrow"><span class="vn">${i+1}</span><span class="vd">${esc(v.desc)}</span>${badge}</div>`;
+  }).join("");
+
+  const cards = (data.processed||[]).filter(p=>p.ok&&p.analysis).map(p=>
+    `<div class="vcard"><div class="vtitle">${esc(p.title||p.desc)}</div>${renderFlow(p.analysis)}</div>`).join("");
+
+  $("meta").innerHTML = `<span><b>合集</b> mix ${data.mixId}</span>`+
+    `<span><b>视频数</b> ${data.count}</span>`+
+    `<span><b>本次解析</b> ${data.limit} 条${data.limit===data.count?"（全量）":""}</span>`;
+  $("flow").innerHTML = `<div class="tlabel" style="margin-top:20px">合集视频列表（${data.count} 条）</div>`+
+    `<div class="vlist">${rows}</div>`+
+    (cards?`<div class="tlabel" style="margin-top:26px">逐条 AI 瘦脉络</div>${cards}`:"");
+  $("rawwrap").style.display = "none";   // 合集不看单条原始字幕
+  $("result").classList.add("show");
+}
+
+function renderMulti(data){
+  $("steps").classList.add("show");
+  $("steps").innerHTML = `<div class="step ok">
+    <div class="ico ok">✓</div>
+    <div class="st-name">识别多链接</div>
+    <div class="st-detail">${data.count} 条独立链接，逐条走单视频管线</div>
+    <div class="st-ms"></div></div>`;
+  $("banner").textContent = `${data.ok?"✓":"✕"} 多视频 —— ${esc(data.summary||"")}`;
+  $("banner").classList.add("show", data.ok?"ok":"fail");
+
+  const rows = (data.processed||[]).map((p,i)=>{
+    const badge = p.ok
+      ? `<span class="pill ok">✓ ${p.nodeCount}节点·${p.transcriptLen}字</span>`
+      : `<span class="pill fail" title="${esc(p.error)}">✕ 失败</span>`;
+    return `<div class="vrow"><span class="vn">${i+1}</span><span class="vd">${esc(p.title||p.url)}</span>${badge}</div>`;
+  }).join("");
+
+  const cards = (data.processed||[]).filter(p=>p.ok&&p.analysis).map(p=>
+    `<div class="vcard"><div class="vtitle">${esc(p.title||p.url)}</div>${renderFlow(p.analysis)}</div>`).join("");
+
+  $("meta").innerHTML = `<span><b>多视频</b> ${data.count} 条独立链接</span>`;
+  $("flow").innerHTML = `<div class="tlabel" style="margin-top:20px">链接列表（${data.count} 条）</div>`+
+    `<div class="vlist">${rows}</div>`+
+    (cards?`<div class="tlabel" style="margin-top:26px">逐条 AI 瘦脉络</div>${cards}`:"");
+  $("rawwrap").style.display = "none";
+  $("result").classList.add("show");
+}
+
+$("run").onclick = async ()=>{
+  $("rawwrap").style.display = "";
+  const input = $("input").value.trim();
+  if(!input){ $("input").focus(); return; }
+  $("run").disabled = true; $("run").textContent = "跑管线中…";
+  $("result").classList.remove("show"); $("banner").classList.remove("show","ok","fail");
+
+  // 乐观显示：第一步 running
+  const states = STEP_NAMES.map(()=>({status:"wait"}));
+  states[0]={status:"run"};
+  renderSteps(states);
+
+  try{
+    const res = await fetch("/api/parse",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({input})});
+    const data = await res.json();
+
+    if(data.type === "mix"){ renderMix(data); return; }
+    if(data.type === "multi"){ renderMulti(data); return; }
+
+    // ── 单视频 ──
+    const done = data.steps||[];
+    const final = STEP_NAMES.map((n)=>done.find(d=>d.name===n) || {status:"wait"});
+    renderSteps(final);
+
+    if(data.ok){
+      $("banner").textContent = "✓ 管道全通 —— 链接解析 + ASR + AI 理解成功";
+      $("banner").classList.add("show","ok");
+      const r = data.result;
+      $("meta").innerHTML =
+        `<span><b>平台</b> ${r.platform}</span>`+
+        (r.title?`<span><b>标题</b> ${r.title}</span>`:"")+
+        (r.author?`<span><b>作者</b> ${r.author}</span>`:"");
+      $("flow").innerHTML = renderFlow(r.analysis);
+      $("transcript").textContent = r.transcript || "(空)";
+      $("result").classList.add("show");
+    }else{
+      const failed = done.find(d=>d.status==="fail");
+      $("banner").textContent = `✕ 管道在「${failed?failed.name:"?"}」断了：${data.error||""}`;
+      $("banner").classList.add("show","fail");
+    }
+  }catch(e){
+    $("banner").textContent = "✕ 请求失败："+e.message;
+    $("banner").classList.add("show","fail");
+  }finally{
+    $("run").disabled=false; $("run").textContent="跑一遍";
+  }
+};
+</script>
+</body>
+</html>

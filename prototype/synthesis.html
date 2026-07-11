@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>回响 · 跨视频合成</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/lxgwwenkaiscreen.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="page.js"></script>
+<script>
+/* 跨视频合成（合集层）—— ?coll=c1；明星知识点挂 ≥2 来源；出口 → discussion.html?coll=<id> */
+const cid=qp('coll','c1'); const sy=SYNTH[cid]||SYNTH.c1;
+const pts=sy.points.map(p=>`<div class="kp">
+   <div class="kp-q">${p.q}</div>
+   ${p.stance?`<div class="kp-lead">你看过的人里</div><div class="stance">${p.stance.map(st=>`<span class="pill ${st[0]}">${st[1]}</span>`).join('')}</div>`:''}
+   <div class="note">${p.note}</div><div class="srcs">${p.srcs}</div></div>`).join('');
+const main=`
+  ${backlink(sy.name,`videos.html?coll=${cid}`)}
+  <div class="kick">跨视频合成 · 这个合集里，大家在争什么</div>
+  <h1 class="display">${sy.name}</h1>
+  <div class="dmeta">${sy.points.length} 个知识点 · 每条挂 ≥2 个来源</div>
+  <div style="margin-top:44px">${pts}</div>
+  <a class="cta" href="discussion.html?coll=${cid}">就这个话题，发起讨论 →</a>`;
+mount(doc(main));
+</script>
+</body>
+</html>

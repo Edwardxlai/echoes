@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>回响 · 合集层</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/lxgwwenkaiscreen.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="page.js"></script>
+<script>
+/* 合集层（某个大类下的合集索引）—— ?cat=eco；点合集 → videos.html?coll=<id>
+   入口是 hero.html（大类总览归 hero），所以 back 回 hero.html */
+const catId=qp('cat','eco');
+const catIdx=Math.max(0,CATS.findIndex(c=>c.id===catId));
+const cat=CATS[catIdx];
+const vidCount=cat.colls.reduce((sum,id)=>sum+COLLS[id].videos.length,0);
+const entries=cat.colls.map((cid,i)=>{const c=COLLS[cid];
+  return `<a class="centry" href="videos.html?coll=${cid}">
+    <span class="no">${String(i+1).padStart(2,'0')}</span>
+    <span>
+      <span class="cname"><span class="sw" style="background:${c.cover}"></span>${c.name}</span>
+      <div class="cm">${c.videos.length} 条视频${c.echo?` · <span class="gold">✦ ${c.echo} 回响</span>`:''}</div>
+    </span>
+    <span class="arr">→</span>
+  </a>`;}).join('');
+const main=`
+  ${backlink('回响','hero.html')}
+  <div class="kick">档案 ${String(catIdx+1).padStart(2,'0')} · 你的观看史</div>
+  <h1 class="display">${cat.name}</h1>
+  <div class="dmeta">${cat.colls.length} 个合集 · ${vidCount} 条视频${cat.echo?` · <span class="gold">✦ ${cat.echo} 次回响</span>`:''}</div>
+  <div style="margin-top:52px">${entries}</div>`;
+mount(doc(main));
+</script>
+</body>
+</html>

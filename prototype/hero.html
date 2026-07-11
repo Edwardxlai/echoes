@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN" class="hero-doc">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05070c">
+<meta name="description" content="回响把一条视频重构成可探索的概念脉络，并让它与你看过的内容重新连接。">
+<title>回响 · 让看过的彼此回响</title>
+<link rel="preload" href="public/echoes-hero-archive.png" as="image">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="hero-body">
+<main class="hero-page" id="heroPage">
+  <figure class="hero-scene" id="heroScene" aria-labelledby="sceneCaption">
+    <img class="hero-scene__image" src="public/echoes-hero-archive.png" alt="" width="1672" height="941">
+    <div class="hero-scene__shade" aria-hidden="true"></div>
+    <div class="hero-scene__grain" aria-hidden="true"></div>
+
+    <nav class="hero-worlds" aria-label="浏览知识分类">
+      <a class="hero-world hero-world--eco" href="collections.html?cat=eco" data-cat="eco">
+        <span class="hero-world__index" aria-hidden="true">01</span>
+        <span class="hero-world__copy">
+          <strong>经济</strong>
+          <small data-world-meta>2 个合集 · 5 条视频</small>
+        </span>
+        <span class="hero-world__echo" data-world-echo>✦ 3</span>
+        <span class="hero-world__arrow" aria-hidden="true">↗</span>
+      </a>
+
+      <a class="hero-world hero-world--tech" href="collections.html?cat=tech" data-cat="tech">
+        <span class="hero-world__index" aria-hidden="true">02</span>
+        <span class="hero-world__copy">
+          <strong>科技</strong>
+          <small data-world-meta>1 个合集 · 2 条视频</small>
+        </span>
+        <span class="hero-world__echo" data-world-echo>✦ 2</span>
+        <span class="hero-world__arrow" aria-hidden="true">↗</span>
+      </a>
+
+      <a class="hero-world hero-world--his" href="collections.html?cat=his" data-cat="his">
+        <span class="hero-world__index" aria-hidden="true">03</span>
+        <span class="hero-world__copy">
+          <strong>历史</strong>
+          <small data-world-meta>1 个合集 · 2 条视频</small>
+        </span>
+        <span class="hero-world__echo" data-world-echo>✦ 1</span>
+        <span class="hero-world__arrow" aria-hidden="true">↗</span>
+      </a>
+    </nav>
+
+    <div class="hero-echo-note" aria-hidden="true">
+      <span class="hero-echo-note__pulse"></span>
+      <span>一条旧观点，正在这里发光</span>
+    </div>
+    <figcaption class="sr-only" id="sceneCaption">由观看记忆构成的三个档案岛，一条金色回响正在岛屿之间传递。</figcaption>
+  </figure>
+
+  <header class="hero-nav">
+    <a class="hero-brand" href="hero.html" aria-label="回响首页">
+      <span class="hero-brand__mark" aria-hidden="true">✦</span>
+      <span class="hero-brand__name">回响</span>
+    </a>
+    <div class="hero-nav__status" aria-label="知识库状态">
+      <span class="hero-nav__signal" aria-hidden="true"></span>
+      <span>3 个世界已点亮</span>
+      <span class="hero-nav__divider" aria-hidden="true"></span>
+      <span>6 次回响</span>
+    </div>
+  </header>
+
+  <section class="hero-intro" aria-labelledby="heroTitle">
+    <p class="hero-kicker"><span>你的私人观看史</span><i aria-hidden="true"></i><span>正在重新连接</span></p>
+    <h1 id="heroTitle">让看过的，<em>彼此回响</em></h1>
+    <p class="hero-lead">上一条视频，在这一条里回响。粘进来，让散落的观点长出脉络，也找回它们之间的关系。</p>
+
+    <form class="hero-input" id="heroForm" novalidate>
+      <label class="sr-only" for="heroLink">粘贴视频链接或合集链接</label>
+      <span class="hero-input__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" role="img"><path d="M9.2 14.8 14.8 9.2M7.1 17.6l-1.4 1.3a3.7 3.7 0 0 1-5.2-5.2l4-4a3.7 3.7 0 0 1 5.2 0M16.9 6.4l1.4-1.3a3.7 3.7 0 1 1 5.2 5.2l-4 4a3.7 3.7 0 0 1-5.2 0"/></svg>
+      </span>
+      <input id="heroLink" name="video-link" type="url" inputmode="url" autocomplete="off" placeholder="粘贴视频链接 / 导入合集…">
+      <button class="hero-input__submit" type="submit" aria-label="开始解析">
+        <span class="hero-input__arrow" aria-hidden="true">→</span>
+        <span class="hero-input__loader" aria-hidden="true"></span>
+      </button>
+    </form>
+
+    <div class="hero-intro__meta">
+      <button class="hero-example" id="heroExample" type="button">试用一条示例 <span aria-hidden="true">↗</span></button>
+      <span class="hero-format"><i aria-hidden="true"></i> 支持抖音单条与合集</span>
+    </div>
+  </section>
+
+  <a class="hero-recent" id="recentEcho" href="parse.html?v=v1">
+    <span class="hero-recent__rail" aria-hidden="true"></span>
+    <span class="hero-recent__content">
+      <span class="hero-recent__eyebrow">最近的回响 <b>01 / 03</b></span>
+      <strong class="hero-recent__pair"><span data-feed-a>通胀到底是谁的锅</span><i>×</i><span data-feed-b>央行加息在加什么</span></strong>
+      <span class="hero-recent__relation"><span data-feed-rel>两条唱反调</span><b>查看解析 ↗</b></span>
+    </span>
+  </a>
+
+  <footer class="hero-footer">
+    <span><i aria-hidden="true"></i> 选择一座档案岛，继续探索</span>
+    <span>Echoes / 2026</span>
+  </footer>
+
+  <div class="hero-toast" id="heroToast" role="status" aria-live="polite">正在找回你的观看史…</div>
+</main>
+
+<script src="data.js"></script>
+<script>
+(() => {
+  const page = document.getElementById('heroPage');
+  const scene = document.getElementById('heroScene');
+  const form = document.getElementById('heroForm');
+  const input = document.getElementById('heroLink');
+  const submit = form.querySelector('button[type="submit"]');
+  const example = document.getElementById('heroExample');
+  const toast = document.getElementById('heroToast');
+
+  document.querySelectorAll('[data-cat]').forEach((card) => {
+    const cat = CATS.find((item) => item.id === card.dataset.cat);
+    if (!cat) return;
+    const videoCount = cat.colls.reduce((sum, id) => sum + (COLLS[id]?.videos.length || 0), 0);
+    card.querySelector('[data-world-meta]').textContent = `${cat.colls.length} 个合集 · ${videoCount} 条视频`;
+    card.querySelector('[data-world-echo]').textContent = cat.echo ? `✦ ${cat.echo}` : '尚无回响';
+  });
+
+  if (FEED && FEED.length) {
+    const item = FEED[0];
+    document.querySelector('[data-feed-a]').textContent = item.a;
+    document.querySelector('[data-feed-b]').textContent = item.b;
+    document.querySelector('[data-feed-rel]').textContent = item.rel;
+    document.getElementById('recentEcho').href = `parse.html?v=${item.v}`;
+  }
+
+  const launch = () => {
+    submit.disabled = true;
+    submit.setAttribute('aria-busy', 'true');
+    form.classList.add('is-loading');
+    page.classList.add('is-launching');
+    toast.classList.add('is-visible');
+    sessionStorage.setItem('echoes:incoming-link', input.value.trim());
+    window.setTimeout(() => { location.href = 'parse.html?v=v1'; }, 900);
+  };
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!input.value.trim()) {
+      form.classList.remove('is-nudging');
+      void form.offsetWidth;
+      form.classList.add('is-nudging');
+      input.focus();
+      return;
+    }
+    launch();
+  });
+
+  example.addEventListener('click', () => {
+    input.value = 'https://v.douyin.com/echoes-demo/';
+    form.requestSubmit();
+  });
+
+  if (matchMedia('(pointer:fine)').matches && !matchMedia('(prefers-reduced-motion:reduce)').matches) {
+    window.addEventListener('pointermove', (event) => {
+      const x = (event.clientX / innerWidth - 0.5) * -9;
+      const y = (event.clientY / innerHeight - 0.5) * -6;
+      scene.style.setProperty('--scene-x', `${x}px`);
+      scene.style.setProperty('--scene-y', `${y}px`);
+    }, { passive: true });
+  }
+})();
+</script>
+</body>
+</html>
