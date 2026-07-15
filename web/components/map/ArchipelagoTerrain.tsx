@@ -3,7 +3,7 @@
 import { useContext } from "react";
 import type { MapItem } from "@/lib/map-config";
 import { CloudBank, EchoBeacon, Mountain, Tree, TreeCluster, WaterRipple } from "./TerrainDetails";
-import { MapActiveContext } from "./MapStage";
+import { MapActiveContext, MapDiscoveryContext } from "./MapStage";
 
 const ISLAND_TOPS = [
   "M-56-43C-57-62-38-75-18-73C-4-88 23-85 35-69C52-66 63-50 57-35C66-21 50-9 34-11C20 1-2-2-12-14C-31-8-50-20-48-34C-57-34-62-38-56-43Z",
@@ -143,6 +143,7 @@ export function ArchipelagoTerrain({ islands }: {
   islands: { item: MapItem; echo: boolean; viewed?: boolean; isNew?: boolean; contentRich?: boolean }[];
 }) {
   const activeId = useContext(MapActiveContext);
+  const discovery = useContext(MapDiscoveryContext);
 
   return (
     <svg
@@ -203,6 +204,10 @@ export function ArchipelagoTerrain({ islands }: {
       {islands.map(({ item, echo, viewed = true, isNew = false, contentRich = false }, i) => {
         const unviewed = !viewed;
         const isActive = activeId === item.id;
+        const isRevealing = discovery.revealingIds.has(item.id);
+        const isDiscovered = !discovery.enabled || discovery.discoveredIds.has(item.id);
+        const isDiscoveryHidden =
+          discovery.enabled && (!discovery.ready || (!isDiscovered && !isRevealing));
         const variant = i % ISLAND_TOPS.length;
         const scale = ISLAND_SCALES[variant] * (contentRich ? 1.12 : 1);
 
@@ -211,9 +216,17 @@ export function ArchipelagoTerrain({ islands }: {
             <g
               className={`island${unviewed ? " is-unviewed" : ""}${isNew ? " is-new" : ""}${
                 isActive ? " is-active" : ""
+              }${isRevealing ? " is-discovering" : ""}${
+                isDiscoveryHidden ? " is-discovery-hidden" : ""
               }`}
             >
               <IslandVisual variant={variant} echo={echo} unviewed={unviewed} isNew={isNew} />
+              {isRevealing ? (
+                <g className="islandDiscoveryFog" aria-hidden="true">
+                  <ellipse cx={0} cy={-25} rx={78} ry={47} fill="#5f5968" opacity={0.5} />
+                  <CloudBank x={0} y={-35} scale={1.05} opacity={0.92} />
+                </g>
+              ) : null}
             </g>
           </g>
         );

@@ -16,11 +16,10 @@ import {
   SRGBColorSpace,
   ShaderMaterial,
   Texture,
-  Vector2,
 } from "three";
 import { WORLD_MANIFEST } from "@/lib/map-scene/manifests/world";
 import type { WorldRegionId, WorldRegionManifest } from "@/lib/map-scene/schema";
-import { useWorldMapStore, worldPointer } from "./world-map-store";
+import { useWorldMapStore } from "./world-map-store";
 
 export interface WorldMapCanvasItem {
   id: WorldRegionId;
@@ -66,34 +65,34 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
   void main() {
     float time = uTime * uMotion;
 
-    // Two normal fields scrolling in different directions build an animated
-    // surface normal — the basis for both the shimmer and the refraction.
-    vec2 nUvA = vUv * 20.0 + vec2(time * 0.010, time * 0.006);
-    vec2 nUvB = vec2(1.0 - vUv.x, vUv.y) * 26.0 + vec2(-time * 0.008, time * 0.011);
-    vec3 nA = texture2D(uNormal, nUvA).rgb * 2.0 - 1.0;
-    vec3 nB = texture2D(uNormal, nUvB).rgb * 2.0 - 1.0;
-    vec3 normal = normalize(mix(nA, nB, 0.5));
+    // Keep the watercolour crisp and pretty — only a very slow drift so it never
+    // looks frozen, and NO refraction warping (that muddied the artwork).
+    vec3 water = texture2D(uBaseColor, vUv * 16.0 + vec2(time * 0.0022, time * 0.0013)).rgb;
 
-    // Refraction: bend the watercolour sampling by the surface normal so the
-    // sea wobbles like light through moving water instead of sliding rigidly.
-    vec2 refr = normal.xy * (0.03 + uNormalStrength * 0.12);
-    vec2 baseUvA = vUv * 18.0 + refr + vec2(time * 0.006, time * 0.003);
-    vec2 baseUvB = vec2(1.0 - vUv.x, vUv.y) * 22.0 - refr + vec2(-time * 0.004, time * 0.005);
-    vec3 water = mix(texture2D(uBaseColor, baseUvA).rgb, texture2D(uBaseColor, baseUvB).rgb, 0.4);
-
-    float roughness = texture2D(uRoughness, nUvB * 0.8).r;
+    // Movement comes from light, not from distorting the texture: an animated
+    // surface normal drives a travelling sparkle.
+    vec2 nUvA = vUv * 22.0 + vec2(time * 0.012, time * 0.007);
+    vec2 nUvB = vec2(1.0 - vUv.x, vUv.y) * 28.0 + vec2(-time * 0.009, time * 0.013);
+    vec3 normal = normalize(mix(
+      texture2D(uNormal, nUvA).rgb * 2.0 - 1.0,
+      texture2D(uNormal, nUvB).rgb * 2.0 - 1.0,
+      0.5
+    ));
     vec3 lightDir = normalize(vec3(-0.26, 0.4, 1.0));
-    float glint = pow(max(dot(normal, lightDir), 0.0), 10.0) * (1.0 - roughness);
+    float roughness = texture2D(uRoughness, nUvB * 0.8).r;
+    float glint = pow(max(dot(normal, lightDir), 0.0), 9.0) * (1.0 - roughness);
 
-    // Slow caustic bands drifting with the flow map.
-    float flow = texture2D(uFlow, vUv * 5.0 + refr * 0.5 + vec2(time * 0.0016, time * 0.0006)).r;
-    float caustic = pow(max(flow, 0.0), 2.0);
+    // Soft caustic light bands slowly drifting across the sea — the main, calm
+    // sense of a living surface.
+    float c1 = texture2D(uFlow, vUv * 4.0 + vec2(time * 0.006, time * 0.0022)).r;
+    float c2 = texture2D(uFlow, vUv * 6.5 + vec2(-time * 0.004, time * 0.005)).r;
+    float caustic = pow(max(c1 * c2, 0.0), 1.4);
 
     vec3 paperSea = vec3(0.890, 0.949, 0.937);
     vec3 color = mix(paperSea, water, 0.55);
-    color += (flow - 0.5) * 0.10;
-    color += glint * 0.13;
-    color += caustic * 0.05;
+    color += glint * 0.10 * (0.6 + uNormalStrength);
+    color += caustic * 0.09;
+    color += (c1 - 0.5) * 0.045;
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -161,8 +160,6 @@ function WaterLayer({ reducedMotion }: { reducedMotion: boolean }) {
       uTime: { value: 0 },
       uMotion: { value: reducedMotion ? 0 : 1 },
       uNormalStrength: { value: size.width <= 560 ? 0.14 : 0.22 },
-      uPointer: { value: new Vector2(0.5, 0.5) },
-      uPointerStrength: { value: 0 },
     }),
     [reducedMotion, size.width, textures],
   );
@@ -175,16 +172,6 @@ function WaterLayer({ reducedMotion }: { reducedMotion: boolean }) {
     material.uniforms.uTime.value = clock.elapsedTime;
     material.uniforms.uMotion.value = reducedMotion ? 0 : 1;
     material.uniforms.uNormalStrength.value = size.width <= 560 ? 0.14 : 0.22;
-
-    // Follow the cursor with a little lag (a wake), then let the ripple decay so
-    // the sea settles when the pointer stops. Reduced-motion keeps it flat.
-    const pointer = material.uniforms.uPointer.value as Vector2;
-    pointer.x += (worldPointer.u - pointer.x) * 0.18;
-    pointer.y += (worldPointer.v - pointer.y) * 0.18;
-    const targetStrength = reducedMotion ? 0 : worldPointer.strength;
-    material.uniforms.uPointerStrength.value +=
-      (targetStrength - material.uniforms.uPointerStrength.value) * 0.15;
-    worldPointer.strength *= 0.92;
   });
 
   return (
@@ -341,6 +328,48 @@ function RegionInteraction({
   );
 }
 
+// A soft watercolour ring that blooms from the tapped point, using the ripple
+// artwork (not a shader wave). The sprite is a light lavender stroke, drawn with
+// normal blending so it reads over the bright sea without ever going dark.
+function RippleBurst({ reducedMotion }: { reducedMotion: boolean }) {
+  const ring = useTexture(WORLD_MANIFEST.assets.water.ripples[0]);
+  const meshRef = useRef<Mesh>(null);
+  const materialRef = useRef<MeshBasicMaterial>(null);
+  const startedAt = useRef(-100);
+  const seenSequence = useRef(0);
+  useMemo(() => prepareTexture(ring), [ring]);
+
+  // Read the store inside the frame loop rather than subscribing: a new tap bumps
+  // the sequence, which restarts the bloom at the tapped point.
+  useFrame(({ clock }) => {
+    const mesh = meshRef.current;
+    const material = materialRef.current;
+    if (!mesh || !material) return;
+
+    const ripple = useWorldMapStore.getState().ripple;
+    if (ripple.sequence !== seenSequence.current) {
+      seenSequence.current = ripple.sequence;
+      startedAt.current = clock.elapsedTime;
+      mesh.position.set(ripple.position[0], ripple.position[1], 1.06);
+    }
+
+    const duration = reducedMotion ? 0.01 : 1.15;
+    const progress = (clock.elapsedTime - startedAt.current) / duration;
+    const visible = seenSequence.current > 0 && progress >= 0 && progress <= 1;
+    mesh.visible = visible;
+    if (!visible) return;
+    mesh.scale.setScalar(0.4 + progress * 1.05);
+    material.opacity = Math.pow(1 - progress, 1.6) * 0.8;
+  });
+
+  return (
+    <mesh ref={meshRef} position={[0, 0, 1.06]} renderOrder={7} visible={false}>
+      <planeGeometry args={[13, 8.2]} />
+      <meshBasicMaterial ref={materialRef} map={ring} transparent opacity={0} depthWrite={false} />
+    </mesh>
+  );
+}
+
 function WorldScene({ items, onRegionActivate }: WorldMapCanvasProps) {
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const reducedMotion = useReducedMotionPreference();
@@ -388,6 +417,7 @@ function WorldScene({ items, onRegionActivate }: WorldMapCanvasProps) {
         introDelay={0.16}
         reducedMotion={reducedMotion}
       />
+      <RippleBurst reducedMotion={reducedMotion} />
 
       {WORLD_MANIFEST.regions.map((region) => (
         <RegionGlow key={`glow-${region.id}`} region={region} />

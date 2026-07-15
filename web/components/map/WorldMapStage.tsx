@@ -15,7 +15,7 @@ import {
 } from "react";
 import { WORLD_MANIFEST } from "@/lib/map-scene/manifests/world";
 import type { WorldRegionId } from "@/lib/map-scene/schema";
-import { useWorldMapStore, worldPointer, type WorldCameraState } from "./world-map-store";
+import { useWorldMapStore, type WorldCameraState } from "./world-map-store";
 import type { WorldMapCanvasItem } from "./WorldMapCanvas";
 
 const WorldMapCanvas = dynamic(() => import("./WorldMapCanvas"), {
@@ -101,6 +101,7 @@ export function WorldMapStage({ items }: WorldMapStageProps) {
   const select = useWorldMapStore((state) => state.select);
   const restore = useWorldMapStore((state) => state.restore);
   const reset = useWorldMapStore((state) => state.reset);
+  const triggerRipple = useWorldMapStore((state) => state.triggerRipple);
   const suppressClicks = useWorldMapStore((state) => state.suppressClicks);
 
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
@@ -163,26 +164,10 @@ export function WorldMapStage({ items }: WorldMapStageProps) {
     reset();
   }, [reset]);
 
-  // Translate a screen point into water-plane UV so the sea can ripple under the
-  // cursor. `boost` sets the ripple energy (a firm pulse on press, gentle on move).
-  const trackPointer = (clientX: number, clientY: number, boost: number) => {
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const scale = cameraScale(rect, camera.zoomRatio);
-    const worldX = camera.x + (clientX - rect.left - rect.width / 2) / scale;
-    const worldY = camera.y - (clientY - rect.top - rect.height / 2) / scale;
-    const env = WORLD_MANIFEST.environmentSize[0];
-    worldPointer.u = worldX / env + 0.5;
-    worldPointer.v = worldY / env + 0.5;
-    worldPointer.strength = Math.max(worldPointer.strength, boost);
-  };
-
   const beginPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     if (target.closest("button,a,.infoPanel")) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
-
-    trackPointer(event.clientX, event.clientY, 2.6);
 
     pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY, type: event.pointerType });
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -218,8 +203,6 @@ export function WorldMapStage({ items }: WorldMapStageProps) {
       sample.x = event.clientX;
       sample.y = event.clientY;
     }
-
-    trackPointer(event.clientX, event.clientY, 1);
 
     const touchPointers = [...pointersRef.current.values()].filter((pointer) => pointer.type === "touch");
     if (pinchRef.current && touchPointers.length >= 2) {
@@ -275,8 +258,23 @@ export function WorldMapStage({ items }: WorldMapStageProps) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     if (pointersRef.current.size < 2) pinchRef.current = null;
+
+    // A tap (a press that didn't turn into a pan) drops a ripple at that point.
+    // Panning and pinching stay quiet.
+    const drag = dragRef.current;
+    const wasTap = drag?.pointerId === event.pointerId && !drag.moved && !pinchRef.current;
     if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
     if (pointersRef.current.size === 0) setIsDragging(false);
+
+    if (wasTap) {
+      const rect = stageRef.current?.getBoundingClientRect();
+      if (rect) {
+        const scale = cameraScale(rect, camera.zoomRatio);
+        const worldX = camera.x + (event.clientX - rect.left - rect.width / 2) / scale;
+        const worldY = camera.y - (event.clientY - rect.top - rect.height / 2) / scale;
+        triggerRipple([worldX, worldY]);
+      }
+    }
   };
 
   const handleWheel = (event: ReactWheelEvent<HTMLDivElement>) => {

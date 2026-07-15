@@ -61,6 +61,7 @@ export default async function RegionMapPage({
       terrain: real.terrain,
       glyphKind: real.glyphKind,
       mapItem: real.mapItem,
+      synthesisRoute: real.hasSynthesis ? `${real.mapItem.route}/synthesis` : undefined,
     }));
   } else {
     const seedItems = new Map((scene?.items ?? []).map((item) => [item.entityId, item]));
@@ -97,7 +98,7 @@ export default async function RegionMapPage({
     route: landmark.mapItem.route,
     routeLabel: "进入群岛",
     secondaryRoute: landmark.synthesisRoute,
-    secondaryLabel: landmark.synthesisRoute ? "看全貌" : undefined,
+    secondaryLabel: landmark.synthesisRoute ? "合集解析" : undefined,
     echo: landmark.echoCount > 0,
     focusX: landmark.mapItem.cameraTarget.target[0],
     focusY: landmark.mapItem.cameraTarget.target[1],
@@ -183,7 +184,7 @@ export default async function RegionMapPage({
           storageRevision={categoryId === "his" ? "history-art-v1" : undefined}
           sceneAspectRatio={categoryId === "his" ? 1586 / 992 : undefined}
           fitMode={categoryId === "his" ? "contain" : undefined}
-          fitPadding={categoryId === "his" ? { desktop: 0.96, mobile: 0.84 } : undefined}
+          fitPadding={categoryId === "his" ? { desktop: 0.96, mobile: 0.95 } : undefined}
           discoveryNamespace={`region:${categoryId}`}
           background={
             <RegionTerrain

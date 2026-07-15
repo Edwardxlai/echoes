@@ -6,9 +6,10 @@
    ================================================================ */
 import { createMapItem, type MapItem } from "@/lib/map-config";
 import {
-  listCollections, listAssetsByCollection, getCollectionRow, getAnalysis,
+  listCollections, listAssetsByCollection, getCollectionRow, getAnalysis, getSynthesis,
   type CollectionRow, type SourceAsset,
 } from "./store";
+import type { Synthesis } from "@/lib/data";
 
 export { hasRealMapContent } from "./store";
 
@@ -53,6 +54,8 @@ export interface RealLandmark {
   terrain: string;
   glyphKind: (typeof GLYPHS)[number];
   mapItem: MapItem;
+  /** 合集级跨视频合成是否已生成——决定区域地图信息面板是否出"合集解析"入口。 */
+  hasSynthesis: boolean;
 }
 
 function toLandmark(row: CollectionRow, index: number): RealLandmark {
@@ -67,6 +70,7 @@ function toLandmark(row: CollectionRow, index: number): RealLandmark {
     echoCount: assets.reduce((sum, a) => sum + echoCountOf(a.id), 0),
     terrain: TERRAIN_BY_GLYPH[glyphKind],
     glyphKind,
+    hasSynthesis: getSynthesis(row.id) !== null,
     mapItem: createMapItem({
       id: `landmark-${row.id}`,
       entityType: "collection",
@@ -124,6 +128,8 @@ export interface RealCollectionDetail {
   categoryId: string;
   echoCount: number;
   islands: RealIsland[];
+  /** 合集级跨视频合成（L6）。未生成/单集合集时为 null。 */
+  synthesis: Synthesis | null;
 }
 
 export function realCollectionDetail(collectionId: string): RealCollectionDetail | null {
@@ -164,5 +170,6 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
     categoryId: row.categoryId,
     echoCount: islands.reduce((sum, island) => sum + island.echoCount, 0),
     islands,
+    synthesis: getSynthesis(row.id),
   };
 }

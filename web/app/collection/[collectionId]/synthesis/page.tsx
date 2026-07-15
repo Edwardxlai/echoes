@@ -1,20 +1,55 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCollection, videosOf } from "@/lib/data";
+import { realCollectionDetail } from "@/lib/server/real-data";
 import { SynthesisPoints } from "@/components/reader/SynthesisPoints";
 import { CognitiveExpansionBlock } from "@/components/reader/CognitiveExpansionBlock";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
 
+export const dynamic = "force-dynamic";
+
+/* 数据源两层：种子合集（lib/data.ts）优先命中，miss 时查真实解析合集（store）。
+   合集级 synthesis 由管线 L6 收尾生成；没生成出来就走"关联不够多"兜底。 */
 export default async function CollectionSynthesisPage({
   params,
 }: {
   params: Promise<{ collectionId: string }>;
 }) {
   const { collectionId } = await params;
-  const collection = getCollection(collectionId);
-  if (!collection) notFound();
 
-  const videos = videosOf(collectionId);
+  const seed = getCollection(collectionId);
+  const real = seed ? null : realCollectionDetail(collectionId);
+  if (!seed && !real) notFound();
+
+  const collection = seed
+    ? {
+        name: seed.name,
+        categoryId: seed.categoryId,
+        echoCount: seed.echoCount,
+        synthesis: seed.synthesis ?? null,
+        cognitiveExpansion: seed.cognitiveExpansion,
+      }
+    : {
+        name: real!.name,
+        categoryId: real!.categoryId,
+        echoCount: real!.echoCount,
+        synthesis: real!.synthesis,
+        cognitiveExpansion: undefined,
+      };
+
+  const videos = seed
+    ? videosOf(collectionId).map((v) => ({
+        id: v.id,
+        title: v.title,
+        duration: v.duration,
+        echoCount: v.nodes.filter((n) => n.echo).length,
+      }))
+    : real!.islands.map((v) => ({
+        id: v.id,
+        title: v.title,
+        duration: v.duration,
+        echoCount: v.echoCount,
+      }));
 
   return (
     <div className="doc">
@@ -40,6 +75,7 @@ export default async function CollectionSynthesisPage({
           <Link key={v.id} className="tocRow" href={`/video/${v.id}`}>
             <span className="no">{String(i + 1).padStart(2, "0")}</span>
             <span className="t">{v.title}</span>
+            <span className="ec">{v.echoCount > 0 ? `✦ ${v.echoCount}` : ""}</span>
             <span className="dur">{v.duration}</span>
           </Link>
         ))}

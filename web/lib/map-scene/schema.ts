@@ -17,6 +17,26 @@ export interface WorldRegionManifest {
   tint: string;
 }
 
+export type WorldExpansionIslandState = "locked" | "available" | "hidden";
+
+export interface WorldExpansionIslandManifest {
+  id: string;
+  state: WorldExpansionIslandState;
+  position: [number, number, number];
+  size: [number, number];
+  assets: {
+    terrain: string;
+    contactShadow: string;
+    height: string;
+    mask: string;
+    coast: {
+      shallow: string;
+      wetContact: string;
+      foam: string;
+    };
+  };
+}
+
 export interface WorldSceneManifest {
   id: "world";
   version: 1;
@@ -52,4 +72,5 @@ export interface WorldSceneManifest {
     };
   };
   regions: WorldRegionManifest[];
+  expansionIslands: WorldExpansionIslandManifest[];
 }

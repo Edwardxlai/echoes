@@ -173,8 +173,14 @@
 
 /* ---------- 跨视频合成：关系标签压顶 + 知识点 + 溯源，整宽一体 ---------- */
 .kp{padding:26px 0;border-bottom:1px solid var(--rule)}
-.kp-rel{font-family:var(--sans);font-weight:500;font-size:12px;letter-spacing:.05em;
-  color:var(--ink-3);margin-bottom:8px}
+.kp-rel{font-family:var(--sans);font-weight:600;font-size:12px;letter-spacing:.05em;
+  color:var(--ink-3);margin-bottom:8px;display:inline-flex;align-items:center;gap:7px}
+.kp-rel::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.kp-rel--yes{color:var(--yes)}
+.kp-rel--deep{color:var(--deep)}
+.kp-rel--no{color:var(--no)}
+.kp-rel--amber{color:var(--amber)}
+.kp-rel--neutral{color:var(--ink-3)}
 .kp-body{min-width:0}
 .kp-q{font-family:var(--serif);font-size:19px;line-height:1.7}
 .stance{display:flex;flex-wrap:wrap;gap:18px;margin-top:8px}
@@ -184,13 +190,24 @@
 .pill.c{color:var(--no)}
 .note{margin-top:14px;font-size:15px;line-height:1.9;color:var(--ink)}
 .note .em{background:linear-gradient(180deg,transparent 58%,var(--amber-wash) 58%)}
-.srcs{margin-top:12px;font-size:12px;line-height:1.9;color:var(--ink-3)}
-.srcs b{color:var(--ink-2);font-weight:400}
+.srcs{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+.src{display:inline-flex;align-items:center;gap:7px;max-width:100%;
+  padding:4px 11px 4px 4px;border:1px solid var(--rule);border-radius:999px;
+  font-size:12.5px;color:var(--ink-2);text-decoration:none;
+  transition:border-color .18s,color .18s,background .18s}
+.src:hover{border-color:var(--amber);color:var(--ink);background:var(--bg-soft)}
+.src:hover .src-no{background:var(--amber);color:#fff}
+.src-no{flex:none;width:17px;height:17px;border-radius:50%;background:var(--bg-soft);
+  color:var(--ink-3);font:600 10px var(--mono);font-style:normal;
+  display:inline-flex;align-items:center;justify-content:center}
+.src-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.src-ts{flex:none;font:11px var(--mono);color:var(--ink-3);font-style:normal;font-variant-numeric:tabular-nums}
 
 /* ---------- 集数索引（合集解析页，PRD §6.4.3）：目录式行，只是入口 ---------- */
 .toc{margin-top:28px;border-top:1px solid var(--rule)}
-.tocRow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;column-gap:12px;align-items:baseline;
+.tocRow{display:grid;grid-template-columns:28px minmax(0,1fr) auto auto;column-gap:12px;align-items:baseline;
   padding:11px 8px 11px 0;border-bottom:1px solid var(--rule);text-decoration:none;transition:background .18s}
+.tocRow .ec{font-family:var(--mono);font-size:11.5px;color:var(--amber);font-variant-numeric:tabular-nums;white-space:nowrap}
 .tocRow:hover{background:var(--bg-soft)}
 .tocRow .no{font-family:var(--mono);font-size:12px;color:var(--ink-3);
   font-variant-numeric:tabular-nums}

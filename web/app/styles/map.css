@@ -844,6 +844,8 @@
 .terrain-tech,
 .landmark,
 .island{
+  --island-opacity:1;
+  --island-saturation:1;
   transform-box:fill-box;
   transform-origin:center bottom;
   transition:transform .36s cubic-bezier(.2,.8,.2,1),filter .36s ease,opacity .25s ease;
@@ -863,9 +865,17 @@
   transform:translateY(-8px) scale(1.035);
   filter:brightness(1.04) saturate(1.08) drop-shadow(0 15px 12px rgba(64,78,67,.16));
 }
-.island.is-unviewed{opacity:.52;filter:saturate(.55)}
+.island.is-unviewed{--island-opacity:.52;--island-saturation:.55;opacity:var(--island-opacity);filter:saturate(var(--island-saturation))}
 .island.is-new>.island__visual{animation:islandGrow .9s cubic-bezier(.16,.85,.24,1) both}
 .island.is-new{animation:islandGrow .9s cubic-bezier(.16,.85,.24,1) both}
+.island.is-discovery-hidden{opacity:0;filter:grayscale(1) blur(6px)}
+.island.is-discovering{animation:islandDiscoveryEmerge 1.8s .16s both cubic-bezier(.16,1,.3,1)}
+.islandDiscoveryFog{
+  transform-box:fill-box;
+  transform-origin:center;
+  pointer-events:none;
+  animation:islandDiscoveryFogRetreat 2.18s both cubic-bezier(.16,1,.3,1);
+}
 
 /* DOM hotspots */
 .hotspot{
@@ -1020,6 +1030,7 @@
 
 /* History region: continuous authored terrain with data-driven discovery fog. */
 .mapStage--historyDiscovery{
+  height:clamp(640px,60vw,850px);
   background:#dceceb;
   box-shadow:0 24px 70px rgba(58,74,72,.15),inset 0 0 0 1px rgba(255,255,255,.42);
 }
@@ -1073,9 +1084,9 @@
   --history-fog-rotate:0deg;
   position:absolute;
   z-index:5;
-  width:26%;
-  aspect-ratio:1.55;
-  opacity:.91;
+  width:19%;
+  aspect-ratio:1.5;
+  opacity:.76;
   transform:translate(-50%,-50%) rotate(var(--history-fog-rotate)) scale(1);
   transform-origin:50% 50%;
   pointer-events:none;
@@ -1083,23 +1094,23 @@
 .historyFog__silhouette,
 .historyFog__mist{position:absolute;inset:0;display:block}
 .historyFog__silhouette{
-  inset:16% 12%;
-  clip-path:polygon(8% 61%,16% 30%,36% 17%,52% 25%,69% 11%,88% 32%,94% 61%,78% 80%,55% 74%,37% 88%,14% 77%);
+  inset:18% 11%;
+  clip-path:polygon(4% 58%,11% 36%,24% 20%,43% 16%,57% 23%,72% 13%,89% 30%,96% 52%,88% 70%,72% 82%,55% 77%,39% 89%,21% 81%,8% 70%);
   background:
-    linear-gradient(145deg,rgba(43,40,48,.9),rgba(84,76,91,.76)),
+    linear-gradient(145deg,rgba(49,46,55,.7),rgba(91,82,98,.55)),
     repeating-linear-gradient(19deg,rgba(255,255,255,.05) 0 2px,transparent 2px 9px);
-  filter:blur(1.4px) grayscale(1);
-  box-shadow:0 12px 24px rgba(37,36,42,.28);
+  filter:blur(3px) grayscale(1);
+  box-shadow:0 9px 20px rgba(45,42,49,.13);
 }
 .historyFog__mist{
-  inset:-30%;
+  inset:-8%;
   border-radius:50%;
-  background:radial-gradient(ellipse,rgba(65,60,72,.82) 0 23%,rgba(79,73,86,.65) 38%,rgba(111,106,117,.28) 57%,transparent 73%);
-  filter:blur(9px);
+  background:radial-gradient(ellipse,rgba(69,64,76,.48) 0 22%,rgba(89,82,95,.35) 40%,rgba(116,110,122,.16) 59%,transparent 75%);
+  filter:blur(7px);
 }
-.historyFog--1{--history-fog-rotate:4deg;width:24%}
-.historyFog--2{--history-fog-rotate:-5deg;width:27%}
-.historyFog--3{--history-fog-rotate:7deg;width:23%}
+.historyFog--1{--history-fog-rotate:4deg;width:18%}
+.historyFog--2{--history-fog-rotate:-5deg;width:20%}
+.historyFog--3{--history-fog-rotate:7deg;width:17.5%}
 .historyFog.is-open{visibility:hidden;opacity:0}
 .historyFog.is-revealing{
   visibility:visible;
@@ -1455,6 +1466,16 @@
 
 @keyframes mapPulse{0%,100%{transform:scale(.92);opacity:.75}50%{transform:scale(1.08);opacity:1}}
 @keyframes islandGrow{0%{transform:translateY(10px) scale(.7);opacity:0}100%{transform:translateY(0) scale(1);opacity:1}}
+@keyframes islandDiscoveryEmerge{
+  0%{opacity:0;filter:grayscale(1) saturate(.2) blur(7px);transform:translateY(7px) scale(.82)}
+  46%{opacity:.34;filter:grayscale(.82) saturate(.35) blur(3px)}
+  100%{opacity:var(--island-opacity);filter:grayscale(0) saturate(var(--island-saturation)) blur(0);transform:translateY(0) scale(1)}
+}
+@keyframes islandDiscoveryFogRetreat{
+  0%{opacity:.96;transform:scale(.9);filter:blur(0)}
+  38%{opacity:.78;transform:scale(1.16)}
+  100%{opacity:0;transform:scale(2.05);filter:blur(12px)}
+}
 @keyframes sceneArrive{from{opacity:0;transform:translateY(16px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
 
 @media (max-width:900px){
@@ -1502,6 +1523,7 @@
   .mapSceneSection__caption p{max-width:190px;text-align:right}
   .mapSceneSection--world .mapSceneSection__caption{width:calc(100% - 32px)}
   .mapStage{height:500px;border-radius:20px 20px 14px 14px}
+  .mapStage.mapStage--historyDiscovery{height:330px}
   .mapStage__camera{
     inset:auto;
     left:50%;

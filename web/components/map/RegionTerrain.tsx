@@ -162,7 +162,7 @@ function HistoryRegionTerrain({ landmarks }: { landmarks: RegionLandmark[] }) {
         alt=""
         fill
         sizes="(max-width: 560px) 145vw, 100vw"
-        priority
+        preload
         draggable={false}
       />
       <div className="historyRegionTerrain__ageWash" aria-hidden="true" />

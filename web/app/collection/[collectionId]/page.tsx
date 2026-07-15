@@ -63,7 +63,7 @@ export default async function ArchipelagoMapPage({
 
   const collection = seed
     ? { name: seed.name, categoryId: seed.categoryId, echoCount: seed.echoCount, synthesis: !!seed.synthesis }
-    : { name: real!.name, categoryId: real!.categoryId, echoCount: real!.echoCount, synthesis: false };
+    : { name: real!.name, categoryId: real!.categoryId, echoCount: real!.echoCount, synthesis: !!real!.synthesis };
 
   const items: HotspotDef[] = islands.map((island) => ({
     id: island.mapItem.id,
@@ -136,6 +136,7 @@ export default async function ArchipelagoMapPage({
           <p>选中岛屿，先看核心问题，再决定是否进入解析</p>
         </div>
         <MapStage
+          discoveryNamespace={`collection:${collectionId}`}
           background={
             <ArchipelagoTerrain
               islands={islands.map((island) => ({

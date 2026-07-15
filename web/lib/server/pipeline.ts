@@ -20,8 +20,10 @@ import { join, dirname, basename } from "node:path";
 import {
   createAsset, updateAsset, getAsset, saveTranscript, saveAnalysis, saveExpansion,
   saveEchoes, upsertCollection, getCollectionRow, listRecallSources, getAssetsByGroup,
+  getAnalysis, saveSynthesis,
   type SourceAsset, type BackboneNode, type StoredEcho, type RecallSource,
 } from "./store";
+import type { Synthesis, SynthesisPoint } from "@/lib/data";
 import { cleanVideoTitle } from "./title-utils.mjs";
 
 export { cleanVideoTitle } from "./title-utils.mjs";
@@ -667,6 +669,116 @@ export async function generateKnown(a: AnalysisResult, sources: RecallSource[]):
   return known;
 }
 
+/* ---------- L6 合集合成：整组视频的脉络 → 跨视频知识点（PRD §6.4.2）。
+   与"回响"分工：回响是点对点两句接话；合成是把整组视频摊在一张桌上，
+   找出它们共同回答的问题、以及彼此印证/对撞/补充的知识点。收尾时一次生成。 ---------- */
+export interface SynthesisInputVideo {
+  id: string;
+  title: string;
+  analysis: AnalysisResult;
+}
+
+const SYNTHESIS_SYS = `你是"回响"的合集合成引擎。输入是同一个合集里的多条视频（videos，每条含 id/title/核心问题/类型/脉络节点）。把它们摊在一张桌上比较，产出这组视频"合起来在说什么"。只输出 JSON 对象，不要多余文字。
+
+一、series_question：一句话，这组视频共同回答的那个大问题（不是某一条的核心问题，是它们交汇处的问题）。
+
+二、points：2~4 个跨视频知识点，每个是"多条视频在同一件事上的关系"，不是单条视频的摘要。每条 {label, relation, stance?, note, sources}：
+- label：这个知识点要回答的问题/命题，一句话，≤24字。
+- relation：从下面 6 种固定关系里选**最贴切的一个**，原样输出这四个字，不要自创或改写措辞：
+    · 互相印证：多条视频各自得出同一结论，彼此加强
+    · 拼图互补：各讲一块，合起来才拼出完整图景
+    · 层层递进：一条是另一条的前提/上游，顺着往下推
+    · 正面对撞：结论相反、直接分歧（这类必须给 stance）
+    · 纠偏戳破：一条修正另一条、或戳破一个常识误区
+    · 理论案例：一条讲机制/原理，另一条给现实实例
+- stance：仅当 relation 是「正面对撞」时给出，是立场统计数组，每项 {tag, text}：tag 取 "a"|"b"|"c" 三档，text 如"✔ 2 认同"/"＋1 补充"/"✗ 1 反对"。其它关系不要 stance 字段。
+- note：2~3句，讲清这个点上各视频怎么呼应或分歧。**只讲关系本身，不要出现「视频1」「视频2」这类编号指称，也不要点名具体视频标题**——谁说的交给 sources 归属。用具体内容，不空泛。
+- sources：支撑该点的视频，每项 {video_id, timestamp}。video_id 必须是输入 videos 里真实存在的 id；timestamp 从该视频脉络节点里挑最相关的一个（形如"5:30"，挑不到给空字符串）。至少 1 条，按相关度排序，最相关的排第一。
+
+铁律：
+- 只写真正跨≥2条视频、或某条视频对全组有独特贡献的知识点；单条视频内部的要点不算合成，不要写。
+- 宁缺毋滥：整组视频若各说各话、没有可比较的交汇点，points 给空数组。
+- 忠实转述视频已讲的内容，不新造观点、不替用户下结论。
+
+行文用中文标点，引用与强调用「」。只输出 JSON：{"series_question":"…","points":[{"label":"…","relation":"…","stance":[{"tag":"a","text":"…"}],"note":"…","sources":[{"video_id":"…","timestamp":"…"}]}]}
+字符串内部的引号、换行必须转义，务必输出合法 JSON。`;
+
+/** 整组视频 → 合集级合成。points 全部落空（各说各话）时抛错，由收尾层判为无合成。 */
+export async function generateSynthesis(videos: SynthesisInputVideo[]): Promise<Synthesis> {
+  if (videos.length < 2) throw new Error("合集不足 2 条，无从合成");
+  const byId = new Map(videos.map((v) => [v.id, v]));
+
+  const input = JSON.stringify({
+    videos: videos.map((v) => ({
+      id: v.id,
+      title: v.title,
+      core_question: v.analysis.core_question,
+      video_type: v.analysis.video_type,
+      nodes: v.analysis.backbone.map((n) => ({
+        concept: n.concept, detail: n.detail, timestamp: n.timestamp,
+      })),
+    })),
+  });
+
+  const attempt = async (): Promise<Synthesis> => {
+    const parsed = await callDeepseekJson<{
+      series_question?: string;
+      points?: {
+        label?: string; relation?: string; note?: string;
+        stance?: { tag?: string; text?: string }[];
+        sources?: { video_id?: string; timestamp?: string }[];
+      }[];
+    }>(SYNTHESIS_SYS, input, 0.4);
+
+    // 安全网：prompt 已禁「视频N」，模型偶有漏网时剥掉括注（如"…（视频2、4）…"），
+    // 再收拢多出来的空格与悬空标点。
+    const stripVideoRefs = (s: string) =>
+      s.replace(/[（(]\s*视频[\d、,，\s和及]*[）)]/g, "")
+        .replace(/\s{2,}/g, " ")
+        .replace(/\s+([，。、；：）」])/g, "$1")
+        .trim();
+
+    const points: SynthesisPoint[] = [];
+    for (const p of Array.isArray(parsed.points) ? parsed.points : []) {
+      const label = String(p.label ?? "").trim();
+      const relation = String(p.relation ?? "").trim();
+      const note = stripVideoRefs(String(p.note ?? ""));
+      if (!label || !relation || !note) continue;
+      // 溯源必须落在真实视频上：过滤非法 id，标题以库为准（不信模型回填）
+      const sources = (Array.isArray(p.sources) ? p.sources : [])
+        .map((s) => ({ id: String(s?.video_id ?? ""), ts: String(s?.timestamp ?? "").trim() }))
+        .filter((s) => byId.has(s.id))
+        .map((s) => ({
+          videoId: s.id,
+          title: byId.get(s.id)!.title,
+          timestampText: s.ts,
+        }));
+      if (!sources.length) continue;
+      // 立场统计可选：仅收 tag 合法（a/b/c）且有文案的项
+      const stance = (Array.isArray(p.stance) ? p.stance : [])
+        .map((s) => ({ tag: String(s?.tag ?? "").trim(), text: String(s?.text ?? "").trim() }))
+        .filter((s): s is { tag: "a" | "b" | "c"; text: string } =>
+          (s.tag === "a" || s.tag === "b" || s.tag === "c") && Boolean(s.text));
+      points.push({
+        label, relation, note, sources,
+        ...(stance.length ? { stance } : {}),
+      });
+      if (points.length >= 4) break;
+    }
+    if (!points.length) throw new Error("无跨视频知识点");
+
+    const seriesQuestion = String(parsed.series_question ?? "").trim();
+    return { seriesQuestion, points };
+  };
+
+  let lastErr: unknown;
+  for (let i = 0; i < 2; i++) {
+    try { return await attempt(); }
+    catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
 /* ---------- f2 抖音合集工具（游客 cookie，scripts/mix_enum.py） ---------- */
 export interface MixVideo { aweme_id: string; desc: string }
 
@@ -914,6 +1026,32 @@ async function finalizeMixGroup(groupId: string): Promise<void> {
 
   upsertCollection(groupId, name, cat);
   for (const a of assets) updateAsset(a.id, { collectionId: groupId });
+
+  // L6 合集合成：整组脉络摊开找跨视频知识点。分层独立——失败只是没有合集解析页，
+  // 群岛/单集照常。单集合集（<2）跳过。
+  try {
+    const videos: SynthesisInputVideo[] = [];
+    for (const a of assets) {
+      const an = getAnalysis(a.id);
+      if (!an) continue;
+      videos.push({
+        id: a.id,
+        title: a.title || "未命名视频",
+        analysis: {
+          core_question: an.coreQuestion,
+          video_type: an.videoType as AnalysisResult["video_type"],
+          type_confidence: an.typeConfidence,
+          summary: an.summary,
+          backbone: an.backbone,
+          takeaways: an.takeaways,
+        },
+      });
+    }
+    if (videos.length >= 2) {
+      const synthesis = await generateSynthesis(videos);
+      saveSynthesis(groupId, synthesis);
+    }
+  } catch { /* 无合成：合集解析页走"关联不够多"兜底 */ }
 }
 
 /* 组内逐条跑管线（响应返回后由 after() 调用）。

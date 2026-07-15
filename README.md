@@ -29,15 +29,72 @@
 | 跨视频 | 知识图谱：同一知识点的跨视频合成 + 溯源原视频 | **完整做出来** |
 | 社区 | 按认知深度分层的 gated 评论区 | seed 示例 + roadmap 讲 |
 
-## 差异化一句话
+**差异化一句话**：抖音的总结和章节要点都只作用在一条视频内；回响做的是**跨视频、且连进你个人观看史**的关联——"这个点你看过的谁怎么说"，章节和总结结构上做不出来。这是护城河。
 
-抖音的总结和章节要点都**只作用在一条视频内**；回响做的是**跨视频、且连进你个人观看史**的关联——"这个点你看过的谁怎么说"，章节和总结结构上做不出来。这是护城河。
+## 技术架构
+
+项目分两块：正式产品 `web/`，以及验证"链接→解析→ASR"通路的独立管线测评 `eval/`。
+
+### 正式产品 `web/`（Next.js 16 + React 19）
+
+- **前端**：Next.js 16（App Router）、React 19、React Three Fiber（`@react-three/fiber` + `drei`）驱动世界地图三层导航（大陆 / 群岛 / 视频）。
+- **存储**：SQLite（`web/lib/server/store.ts`），落库 `source_assets / transcripts / analyses / collections`，回响与分类持久化。
+- **解析管线**（`web/lib/server/pipeline.ts`）：直链 → 下载 → ASR → 瘦脉络 → 回响/known → 认知拓展 → AI 分类 → 归入合集。
+- **地图渲染**：真实解析数据经 `web/lib/server/real-data.ts` 转成三层可渲染形状；美术资源运行时成品放 `web/public/map-runtime/`。
+
+### 解析管线测评 `eval/` + `scripts/`
+
+独立、零依赖，验证"链接→解析→ASR"主通路：解析抖音链接 → 下载 → 抽音频 → 火山豆包 ASR。依赖 Node 20+、ffmpeg、`wujunwei928/parse-video` docker sidecar、豆包 ASR key。
+
+## 快速开始
+
+### 跑正式产品（World Map + 解析页）
+
+```bash
+cd web
+npm install
+npm run dev        # http://localhost:3100
+```
+
+> 用 `localhost:3100` 访问，不要用 `127.0.0.1`（Next 16 dev 下会被跨域拦截导致整页不 hydrate）。
+
+### 跑解析管线测评
+
+```bash
+# 根目录：一键拉起抖音解析 sidecar + eval 服务
+npm run dev
+
+# 或只跑 eval 服务（端口 6060）
+npm run server
+```
+
+先复制 `eval/.env.example` 为 `eval/.env` 并填入 ASR key、sidecar 地址等。**改 `.env` 后必须重启 dev 服务器。**
+
+## 目录结构
+
+```
+echoes/
+├── web/                 # 正式产品（Next.js 16 + React 19）
+│   ├── app/             # 页面路由：首页/大陆/群岛/单视频/合成，及 api/*
+│   ├── components/      # map（世界地图三层）+ reader（脉络/认知拓展）
+│   ├── lib/             # data.ts 种子 + server/（store/pipeline/real-data）
+│   └── public/          # map-runtime 地图成品、品牌与封面
+├── eval/                # 解析+ASR 管线测评（独立零依赖）
+├── scripts/             # 一键启动、灌数据、封面回填等辅助脚本
+├── map-art/             # 地图美术源图/审核稿/共享模块（不被前端直接加载）
+├── prototype/           # 早期静态 HTML demo（仅参考，非生产代码）
+└── docs/                # PRD、设计文档、架构表、美术资源手册
+```
+
+想改某个功能却不知道动哪个文件？见 **[docs/项目架构表.md](docs/项目架构表.md)**。
 
 ## 文档
 
-- [产品概念与对齐](docs/产品概念.md) — 为什么这么做：思路、约束推理、功能规格、Demo 策略
-- [设计文档](docs/设计文档.md) — 长什么样、怎么交互：信息架构、页面详解、视觉方向、落地范围
+- [项目架构表](docs/项目架构表.md) — "某功能该改哪个文件"的快速索引
+- [PRD 完整版 V1.2](docs/PRD_回响_完整版_V1.2.md) — 当前权威产品需求
+- [产品概念](docs/产品概念.md) — 为什么这么做：思路、约束推理、Demo 策略
+- [设计文档](docs/设计文档.md) — 信息架构、页面详解、视觉方向
 
 ## 状态
 
-概念对齐完成（「输入视频」范式定稿）。Demo 用 H5：seed 一批观看历史库 + 输入一条视频，走"脉络 → 发光 → 关联 → 图谱 → 讨论"五步。关联/合成等能真做的用真 AI，仅评论区 mock。选题（历史/文学 vs 经济学）待定。
+概念对齐完成（「输入视频」范式定稿）。测试集真实数据已全量灌入：47 条上地图 / 60 回响 / 4 合集齐整，跨视频合成层（L6）已实现并回填。当前主战场为世界地图三层导航的美术资源接入与动效打磨。社区层仍为 roadmap。

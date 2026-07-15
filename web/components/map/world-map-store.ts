@@ -10,21 +10,17 @@ export interface WorldCameraState {
   zoomRatio: number;
 }
 
-/**
- * Cursor position over the sea, in water-plane UV space, plus a decaying strength.
- * Shared as a plain mutable object so high-frequency pointer moves drive the water
- * shader without triggering React re-renders.
- */
-export const worldPointer = { u: 0.5, v: 0.5, strength: 0 };
-
 interface WorldMapState {
   camera: WorldCameraState;
   selectedId: WorldRegionId | null;
   hoveredId: WorldRegionId | null;
+  /** Click-ripple: a monotonic sequence plus the world-space point that was tapped. */
+  ripple: { sequence: number; position: [number, number] };
   suppressClickUntil: number;
   setCamera: (camera: WorldCameraState) => void;
   select: (id: WorldRegionId | null) => void;
   hover: (id: WorldRegionId | null) => void;
+  triggerRipple: (position: [number, number]) => void;
   suppressClicks: (milliseconds?: number) => void;
   restore: (camera: WorldCameraState, selectedId: WorldRegionId | null) => void;
   reset: () => void;
@@ -40,10 +36,13 @@ export const useWorldMapStore = create<WorldMapState>((set) => ({
   camera: HOME_CAMERA,
   selectedId: null,
   hoveredId: null,
+  ripple: { sequence: 0, position: [0, 0] },
   suppressClickUntil: 0,
   setCamera: (camera) => set({ camera }),
   select: (selectedId) => set({ selectedId }),
   hover: (hoveredId) => set({ hoveredId }),
+  triggerRipple: (position) =>
+    set((state) => ({ ripple: { sequence: state.ripple.sequence + 1, position } })),
   suppressClicks: (milliseconds = 260) =>
     set({ suppressClickUntil: Date.now() + milliseconds }),
   restore: (camera, selectedId) => set({ camera, selectedId, hoveredId: null }),

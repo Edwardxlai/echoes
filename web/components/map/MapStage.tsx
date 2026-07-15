@@ -401,10 +401,7 @@ export function MapStage({
   );
 
   useEffect(() => {
-    if (!discoveryStorageKey) {
-      setDiscoveryState({ storageKey: null, discoveredIds: [], revealingIds: [] });
-      return;
-    }
+    if (!discoveryStorageKey) return;
 
     const currentIds = itemSignature ? itemSignature.split("\u001f") : [];
     let previousIds: string[] | null = null;
@@ -426,11 +423,13 @@ export function MapStage({
     // The first visit establishes a baseline. Only ids added on later visits
     // count as discoveries, which makes a newly ingested collection visible.
     if (previousIds === null) {
-      setDiscoveryState({
-        storageKey: discoveryStorageKey,
-        discoveredIds: currentIds,
-        revealingIds: [],
-      });
+      const initializeTimer = window.setTimeout(() => {
+        setDiscoveryState({
+          storageKey: discoveryStorageKey,
+          discoveredIds: currentIds,
+          revealingIds: [],
+        });
+      }, 0);
       try {
         window.localStorage.setItem(
           discoveryStorageKey,
@@ -439,18 +438,22 @@ export function MapStage({
       } catch {
         // The map remains usable when persistent storage is unavailable.
       }
-      return;
+      return () => window.clearTimeout(initializeTimer);
     }
 
     const previousSet = new Set(previousIds);
     const revealing = currentIds.filter((id) => !previousSet.has(id));
-    setDiscoveryState({
-      storageKey: discoveryStorageKey,
-      discoveredIds: previousIds,
-      revealingIds: revealing,
-    });
+    const initializeTimer = window.setTimeout(() => {
+      setDiscoveryState({
+        storageKey: discoveryStorageKey,
+        discoveredIds: previousIds,
+        revealingIds: revealing,
+      });
+    }, 0);
 
-    if (revealing.length === 0) return;
+    if (revealing.length === 0) {
+      return () => window.clearTimeout(initializeTimer);
+    }
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = window.setTimeout(() => {
@@ -470,7 +473,10 @@ export function MapStage({
       }
     }, reducedMotion ? 80 : 2300);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(initializeTimer);
+      window.clearTimeout(timer);
+    };
   }, [discoveryStorageKey, itemSignature]);
 
   const commitCamera = useCallback(

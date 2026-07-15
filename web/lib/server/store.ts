@@ -9,7 +9,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { CognitiveExpansion, Echo } from "@/lib/data";
+import type { CognitiveExpansion, Echo, Synthesis } from "@/lib/data";
 
 export type AssetStatus =
   | "uploaded"
@@ -122,11 +122,12 @@ function getDb(): DatabaseSync {
       createdAt TEXT NOT NULL
     );
   `);
-  // 增量迁移（列已存在时静默跳过）：M2 认知拓展；M3 回响；封面
+  // 增量迁移（列已存在时静默跳过）：M2 认知拓展；M3 回响；封面；合集级跨视频合成
   for (const sql of [
     `ALTER TABLE analyses ADD COLUMN cognitiveExpansion TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE analyses ADD COLUMN echoes TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE source_assets ADD COLUMN cover TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE collections ADD COLUMN synthesis TEXT NOT NULL DEFAULT ''`,
   ]) {
     try { db.exec(sql); } catch { /* 列已存在 */ }
   }
@@ -256,6 +257,24 @@ export function upsertCollection(id: string, name: string, categoryId: string): 
 export function getCollectionRow(id: string): CollectionRow | null {
   const row = getDb().prepare(`SELECT * FROM collections WHERE id = ?`).get(id);
   return (row as unknown as CollectionRow) ?? null;
+}
+
+/** 合集级跨视频合成（L6，finalizeMixGroup 收尾生成）。生成失败/单集合集时缺席。 */
+export function saveSynthesis(collectionId: string, synthesis: Synthesis): void {
+  getDb()
+    .prepare(`UPDATE collections SET synthesis = ? WHERE id = ?`)
+    .run(JSON.stringify(synthesis), collectionId);
+}
+
+export function getSynthesis(collectionId: string): Synthesis | null {
+  const row = getDb()
+    .prepare(`SELECT synthesis FROM collections WHERE id = ?`)
+    .get(collectionId) as { synthesis?: string } | undefined;
+  if (!row?.synthesis) return null;
+  try {
+    const parsed = JSON.parse(row.synthesis) as Synthesis;
+    return parsed.points?.length ? parsed : null;
+  } catch { return null; }
 }
 
 /** 有归属（分类完成）的合集，按大类过滤；只返回内含 ≥1 条已解析视频的。 */
