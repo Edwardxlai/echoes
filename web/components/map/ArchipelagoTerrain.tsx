@@ -139,9 +139,7 @@ function IslandVisual({
   );
 }
 
-export function ArchipelagoTerrain({
-  islands,
-}: {
+export function ArchipelagoTerrain({ islands }: {
   islands: { item: MapItem; echo: boolean; viewed?: boolean; isNew?: boolean; contentRich?: boolean }[];
 }) {
   const activeId = useContext(MapActiveContext);
@@ -206,7 +204,7 @@ export function ArchipelagoTerrain({
         const unviewed = !viewed;
         const isActive = activeId === item.id;
         const variant = i % ISLAND_TOPS.length;
-        const scale = ISLAND_SCALES[variant] * (contentRich ? 1.14 : 1);
+        const scale = ISLAND_SCALES[variant] * (contentRich ? 1.12 : 1);
 
         return (
           <g key={item.id} transform={`translate(${item.x * 10} ${item.y * 5.6 + 2}) scale(${scale})`}>

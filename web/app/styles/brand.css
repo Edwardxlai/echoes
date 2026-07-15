@@ -1,0 +1,106 @@
+.brandHomeLink{
+  display:inline-flex;
+  align-items:center;
+  gap:11px;
+  width:max-content;
+  color:var(--ink);
+  text-decoration:none;
+}
+
+.brandHomeLink__mark{
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:36px;
+  height:36px;
+  flex:none;
+}
+
+.brandHomeLink__mark::after{
+  content:"";
+  position:absolute;
+  inset:4px;
+  border:1px solid rgba(168,123,36,.38);
+  border-radius:50%;
+  opacity:0;
+  pointer-events:none;
+}
+
+.brandHomeLink__mark img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  filter:drop-shadow(0 3px 8px rgba(79,67,42,.08));
+  transform:translateZ(0);
+  transition:transform .32s cubic-bezier(.16,1,.3,1),filter .24s ease;
+}
+
+.brandHomeLink__name{
+  font-family:var(--serif);
+  font-size:20px;
+  font-weight:600;
+  letter-spacing:.14em;
+  text-indent:.14em;
+  white-space:nowrap;
+}
+
+.brandHomeLink__edition{
+  padding-left:12px;
+  border-left:1px solid var(--rule);
+  color:var(--ink-3);
+  font:9px/1 var(--mono);
+  letter-spacing:.12em;
+  white-space:nowrap;
+}
+
+.brandHomeLink:focus-visible{
+  outline:2px solid var(--amber);
+  outline-offset:6px;
+  border-radius:4px;
+}
+
+.readerBrand{
+  position:fixed;
+  z-index:30;
+  top:28px;
+  left:clamp(24px,4vw,64px);
+  display:flex;
+}
+
+@media (hover:hover){
+  .brandHomeLink:hover .brandHomeLink__mark img{
+    filter:drop-shadow(0 5px 12px rgba(168,123,36,.18));
+    transform:scale(1.045) rotate(2deg);
+  }
+
+  .brandHomeLink:hover .brandHomeLink__mark::after{
+    animation:brandEcho .72s cubic-bezier(.16,1,.3,1) both;
+  }
+}
+
+.brandHomeLink:active .brandHomeLink__mark img{transform:scale(.96)}
+
+@keyframes brandEcho{
+  0%{opacity:0;transform:scale(.72)}
+  28%{opacity:.68}
+  100%{opacity:0;transform:scale(1.55)}
+}
+
+@media (max-width:900px){
+  .readerBrand{
+    position:static;
+    margin-bottom:30px;
+  }
+}
+
+@media (max-width:560px){
+  .brandHomeLink__mark{width:34px;height:34px}
+  .brandHomeLink__name{font-size:19px}
+  .brandHomeLink__edition{display:none}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .brandHomeLink__mark::after{display:none}
+  .brandHomeLink__mark img{transition-duration:.05s}
+}

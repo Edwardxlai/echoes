@@ -80,7 +80,7 @@ export interface MapScene {
   items: MapItem[];
 }
 
-type ItemSeed = Pick<
+export type ItemSeed = Pick<
   MapItem,
   "id" | "entityType" | "entityId" | "asset" | "route" | "hitPath"
 > & {
@@ -141,12 +141,15 @@ const item = ({
   };
 };
 
+/** 供服务端 real-data 层为真实解析内容动态生成 MapItem（同一套坐标/命中区规则）。 */
+export const createMapItem = item;
+
 export const WORLD_SCENE: MapScene = {
   id: "world",
   type: "world",
   camera: { position: [50, 50, 100], target: [50, 50, 0], zoom: 1 },
   environment: {
-    asset: "/map/world/world-base.png",
+    asset: "/map/world/world_master_visual_default_lod1_v01.webp",
     effects: ["water", "clouds", "parallax"],
   },
   items: [
@@ -156,7 +159,7 @@ export const WORLD_SCENE: MapScene = {
       entityId: "eco",
       x: 30,
       y: 43,
-      asset: "/map/world/world-focus-economy.png",
+      asset: "/map/world/world_economy_visual_focus_lod1_v01.webp",
       route: "/category/eco",
       cameraZoom: 1.28,
       hitPath:
@@ -169,7 +172,7 @@ export const WORLD_SCENE: MapScene = {
       entityId: "tech",
       x: 69,
       y: 35,
-      asset: "/map/world/world-focus-technology.png",
+      asset: "/map/world/world_technology_visual_focus_lod1_v01.webp",
       route: "/category/tech",
       cameraZoom: 1.28,
       hitPath:
@@ -182,7 +185,7 @@ export const WORLD_SCENE: MapScene = {
       entityId: "his",
       x: 54,
       y: 64,
-      asset: "/map/world/world-focus-history.png",
+      asset: "/map/world/world_history_visual_focus_lod1_v01.webp",
       route: "/category/his",
       cameraZoom: 1.28,
       hitPath:
@@ -229,8 +232,8 @@ export const REGION_SCENES: Record<string, MapScene> = {
         id: "landmark-c3",
         entityType: "collection",
         entityId: "c3",
-        x: 50,
-        y: 50,
+        x: 34,
+        y: 48,
         asset: "landmark/ruins",
         route: "/collection/c3",
       }),
@@ -262,8 +265,8 @@ export const ARCHIPELAGO_SCENES: Record<string, MapScene> = {
     camera: { position: [50, 50, 82], target: [50, 50, 0], zoom: 1 },
     environment: { asset: "environment/archipelago-eco", effects: ["water", "clouds", "mist"] },
     items: [
-      item({ id: "island-v1", entityType: "video", entityId: "v1", x: 30, y: 44, asset: "island/atoll", route: "/video/v1", rotation: [0, 0, -0.04] }),
-      item({ id: "island-v2", entityType: "video", entityId: "v2", x: 60, y: 32, asset: "island/terrace", route: "/video/v2", rotation: [0, 0, 0.03] }),
+      item({ id: "island-v1", entityType: "video", entityId: "v1", x: 30, y: 44, asset: "island/atoll", route: "/video/v1", rotation: [0, 0, -0.04], hitBox: { mobileWidth: 116 } }),
+      item({ id: "island-v2", entityType: "video", entityId: "v2", x: 60, y: 32, asset: "island/terrace", route: "/video/v2", rotation: [0, 0, 0.03], hitBox: { mobileWidth: 116 } }),
       item({ id: "island-v3", entityType: "video", entityId: "v3", x: 72, y: 62, asset: "island/rock", route: "/video/v3", rotation: [0, 0, -0.02] }),
     ],
   },

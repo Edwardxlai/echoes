@@ -14,8 +14,8 @@
 
 /* ---------- 文档骨架 ---------- */
 .doc{max-width:640px;margin:0 auto;padding:clamp(48px,7vh,80px) 24px 120px}
-.backlink{display:inline-flex;align-items:center;gap:8px;margin-bottom:10px;
-  font-size:13px;color:var(--ink-3);text-decoration:none;transition:color .18s}
+.backlink{display:inline-flex;align-items:center;gap:10px;margin-bottom:10px;
+  font-size:14px;color:var(--ink-3);text-decoration:none;transition:color .18s}
 .backlink:hover{color:var(--ink)}
 .colophon{margin-top:88px;text-align:center;font-family:var(--mono);font-size:11px;
   color:var(--ink-3);letter-spacing:.3em;text-indent:.3em}
@@ -25,23 +25,21 @@
   color:var(--ink-3);margin-bottom:10px}
 .display{font-family:var(--serif);font-weight:400;font-size:clamp(27px,4vw,36px);
   line-height:1.5;letter-spacing:.01em;text-wrap:balance}
-.dmeta{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px;row-gap:4px;
+.display--videoTitle{overflow:hidden;max-width:100%;text-overflow:ellipsis;white-space:nowrap}
+.dmeta{display:flex;flex-wrap:nowrap;align-items:baseline;
   margin-top:16px;font-family:var(--sans);font-size:13px;color:var(--ink-3);
   font-variant-numeric:tabular-nums}
 .dmeta .gold{color:var(--amber)}
-/* 类型标签：可点的小字，虚线底表示可改 */
-.typeTag{margin-left:auto;padding:0 0 1px;border:0;background:none;
-  font-family:var(--sans);font-size:12px;color:var(--ink-3);
-  border-bottom:1px dotted var(--ink-3);cursor:pointer;transition:color .18s,border-color .18s}
-.typeTag:hover{color:var(--ink);border-color:var(--ink)}
+/* 标题只收缩不扩张：短标题贴住"》"，长标题省略号截断；其余信息定宽不换行，永远整段可见 */
+.dtitle{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.drest{flex:0 0 auto;white-space:nowrap}
 
 /* ---------- 章节题：压一根墨线，块间唯一的强分隔 ---------- */
 .sh{display:flex;align-items:baseline;gap:14px;margin:30px 0 0;
   padding-bottom:10px;border-bottom:1px solid var(--ink)}
-.sh .no{font-family:var(--serif);font-size:13px;color:var(--ink-3);letter-spacing:.15em}
+.sh .no{font-family:var(--serif);font-size:10px;color:var(--ink-3);letter-spacing:.15em}
 .sh .tt{font-family:var(--serif);font-weight:500;font-size:20px;letter-spacing:.04em}
-.sh .sub,.sh .hint{font-family:var(--sans);font-size:12px;color:var(--ink-3)}
-.sh .hint{margin-left:auto;text-align:right}
+.sh .sub{font-family:var(--sans);font-size:12px;color:var(--ink-3)}
 
 /* ---------- 脉络：时间戳 | 墨点 | 标题，共用对齐轴 ---------- */
 .spine{position:relative}
@@ -50,6 +48,8 @@
   padding:18px 0;border-bottom:1px solid var(--rule);cursor:pointer}
 .node .ts{font-family:var(--mono);font-size:12px;color:var(--ink-3);
   font-variant-numeric:tabular-nums}
+/* 骨架环节名（中文）不走 mono——设计语言红线"mono 不装中文"；11px 保证4字不超48px列宽 */
+.node .ts.role{font-family:var(--sans);font-size:11px;white-space:nowrap}
 .node .dot{width:8px;height:8px;border-radius:50%;background:var(--ink);align-self:start;
   margin-top:10px;justify-self:center;position:relative;z-index:1}
 .node.glow .dot{background:var(--amber-hot);animation:breathe 3.2s ease-in-out infinite}
@@ -58,7 +58,11 @@
   50%{box-shadow:0 0 0 3px var(--bg),0 0 14px 5px rgba(217,169,63,.7)}}
 .nbody{min-width:0}
 .nlabel{font-family:var(--sans);font-size:16px;line-height:28px;color:var(--ink);
-  background:none;border:0;padding:0;text-align:left;cursor:pointer}
+  background:none;border:0;padding:0;text-align:left;cursor:pointer;
+  display:flex;align-items:baseline;gap:10px}
+/* 标题单行，超出省略号；"✦ 回响"徽标不参与截断 */
+.nlabel .ltext{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nlabel .sp{flex:none;margin-left:0}
 .node.glow .nlabel .hl{background:linear-gradient(180deg,transparent 58%,var(--amber-wash) 58%)}
 .sp{font-family:var(--sans);font-size:12px;color:var(--amber);margin-left:10px;letter-spacing:.05em}
 .detail{max-height:0;overflow:hidden;transition:max-height .34s ease}
@@ -68,13 +72,18 @@
 
 /* 回响：收进发光节点内部，两步跳转不裸跳。全站唯一暖金 */
 .echoIn{margin-top:14px;padding:2px 0 4px 16px;border-left:2px solid var(--amber-hot)}
-.echoIn .er{font-family:var(--sans);font-weight:500;font-size:15px;line-height:1.7;color:var(--amber)}
+.echoIn .er{font-family:var(--sans);font-weight:500;font-size:13px;letter-spacing:.06em;line-height:1.7;color:var(--amber)}
 .echoIn .ef{margin-top:6px;font-size:14.5px;line-height:1.9;color:var(--ink-2)}
 .echoIn .ejump{display:inline-block;margin-top:10px;font-family:var(--sans);font-size:13.5px;
   color:var(--amber);cursor:pointer;background:none;border:0;padding:0;
   text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
 .echoIn .ejump:hover{color:var(--ink)}
-.echoIn .esrc{margin-top:8px;font-size:12px;color:var(--ink-3)}
+.echoIn .esrc{margin-top:10px;font-size:12px;color:var(--ink-3)}
+.echoIn .esrc .ejump{margin:0 0 0 10px;font-size:12px}
+
+/* 方案 D「只留旧方」：旧句与上方节点叙述上下对照，两侧的分歧焦点各划一处暖金荧光 */
+.echoIn .eq{margin-top:8px;font-size:15px;line-height:1.85;color:var(--ink)}
+.efx{background:linear-gradient(180deg,transparent 58%,var(--amber-wash) 58%)}
 
 /* ---------- 认知拓展：节点选择器 + 单板浮现 ----------
    三个墨点节点（已有/补缺/延伸）挂在一根发丝线上——沿用脉络的点线语言，
@@ -109,6 +118,8 @@
 .think:hover .xtoggle{color:var(--ink)}
 .xq{font-family:var(--serif);font-size:18px;line-height:1.9;color:var(--ink)}
 .hang{text-indent:-.5em}
+/* 补缺·补上：gap 引子(.xq)下一段背景正文，降一档字号+次级墨色，两拍不贴标签 */
+.xfill{margin-top:12px;font-family:var(--serif);font-size:16px;line-height:1.95;color:var(--ink-2)}
 .xsrc{margin-top:7px;font-family:var(--sans);font-size:12.5px;color:var(--ink-3)}
 .xsrc .kfrom{color:inherit;text-decoration:underline;text-underline-offset:4px;
   text-decoration-thickness:1px;text-decoration-color:var(--ink-3);transition:color .18s}
@@ -124,6 +135,26 @@
   font-family:var(--serif);font-size:15px;color:var(--ink);
   border-bottom:1px solid var(--ink);transition:border-bottom-width .12s,padding-bottom .12s}
 .door:hover{border-bottom-width:2px;padding-bottom:3px}
+
+/* ---------- 解析等待页：管线步骤沿用脉络的点线语言，非交互 ----------
+   进行中的墨点呼吸用墨色不用暖金（暖金只属于回响）。 */
+.pspine{position:relative;margin-top:34px}
+.pspine::before{content:"";position:absolute;left:67px;top:16px;bottom:16px;width:1px;background:var(--rule)}
+.pnode{display:grid;grid-template-columns:48px 16px minmax(0,1fr);column-gap:12px;align-items:baseline;
+  padding:16px 0;border-bottom:1px solid var(--rule)}
+.pnode .no{font-family:var(--mono);font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.pnode .dot{width:8px;height:8px;border-radius:50%;border:1px solid var(--ink-3);background:var(--bg);
+  justify-self:center;align-self:center;position:relative;z-index:1}
+.pnode.done .dot{background:var(--ink);border-color:var(--ink)}
+.pnode.now .dot{background:var(--ink);border-color:var(--ink);animation:inkpulse 1.4s ease-in-out infinite}
+@keyframes inkpulse{0%,100%{opacity:1}50%{opacity:.3}}
+.pnode .plabel{font-family:var(--sans);font-size:16px;line-height:28px;color:var(--ink-3);transition:color .18s}
+.pnode.done .plabel,.pnode.now .plabel{color:var(--ink)}
+.pnode .pstate{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-left:10px}
+/* 失败：素色板（同 .xpanel 的"真实物件才成面"条款），不加边框阴影 */
+.perr{margin-top:34px;background:var(--bg-soft);padding:30px 34px;animation:xfade .24s ease}
+.perr .pt{font-family:var(--serif);font-size:18px;line-height:1.8;color:var(--ink)}
+.perr .pd{margin-top:8px;font-size:14.5px;line-height:1.9;color:var(--ink-2)}
 
 /* ---------- 列表行（视频/合集）：表格式，hover 整行洗色 ---------- */
 .vrow{display:grid;grid-template-columns:48px minmax(0,1fr) auto;column-gap:16px;align-items:baseline;
@@ -163,6 +194,7 @@
 .tocRow:hover{background:var(--bg-soft)}
 .tocRow .no{font-family:var(--mono);font-size:12px;color:var(--ink-3);
   font-variant-numeric:tabular-nums}
-.tocRow .t{font-size:14.5px;line-height:1.6;color:var(--ink-2);transition:color .18s}
+.tocRow .t{overflow:hidden;font-size:14.5px;line-height:1.6;color:var(--ink-2);text-overflow:ellipsis;
+  white-space:nowrap;transition:color .18s}
 .tocRow:hover .t{color:var(--ink)}
 .tocRow .dur{font-family:var(--mono);font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;padding-right:8px}

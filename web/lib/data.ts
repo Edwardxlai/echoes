@@ -4,10 +4,11 @@
    重排进 Category/Collection/Video/Node/Echo/Synthesis/CognitiveExpansion。
    ================================================================ */
 
-export type VideoType = "argument" | "intro" | "compare" | "concept";
+export type VideoType = "argument" | "narrative" | "intro" | "compare" | "concept";
 
 export const VIDEO_TYPE_LABEL: Record<VideoType, string> = {
   argument: "论证类",
+  narrative: "叙事类",
   intro: "介绍类",
   compare: "对比类",
   concept: "概念类",
@@ -18,13 +19,18 @@ export interface Echo {
   targetVideoId?: string; // 有则可跳转；无则只做溯源展示，不裸跳
   creator: string;
   timestampText: string;
-  relation: string; // 一句短关系（"跟这条唱反调"）
-  sentence: string; // AI 一句话展开（"具体怎么相关"）
+  relation: string; // 关系定性短标签（"唱反调"），不带"你看过的"前后缀
+  oldSay?: string; // 方案 D：旧方一句，对着节点叙述写成"接话"；新方=节点 detail 本身，不复述
+  oldFocus?: string; // oldSay 里的分歧焦点（子串），划暖金荧光
+  nodeFocus?: string; // 节点 detail 里的对应原文短语（子串），划暖金荧光
+  sentence?: string; // 旧格式的一句话展开（演示数据兜底，与 oldSay 互斥）
 }
 
 export interface Node {
   id: string;
   label: string;
+  /** 节点在骨架中的环节名（"核心张力"/"论据"），左轨优先显示；缺席回落 timestampText。 */
+  role?: string;
   timestampText: string;
   detail: string;
   echo?: Echo;
@@ -38,8 +44,9 @@ export interface KnownItem {
 
 export interface CognitiveExpansion {
   gapFill: {
-    known: KnownItem[]; // 补缺问题的前提从句：缺口由这些已有反衬出来（检索型，不下判断）
-    toClarify: string; // 一个待用户自己判断/了解的问题，AI 不给答案
+    known: KnownItem[]; // 已有（连接）：这条与用户既有积累怎么接上，独立成 tab
+    gap?: string; // 补缺·戳破：视频承重却没铺的地基（门控：无则不渲染补缺块）
+    fill?: string; // 补缺·补上：视频外的背景知识，与 gap 连读成一段；有 gap 必有 fill
   };
   extend: { question: string; hint: string; voices: number }[]; // 开放问题 + 同题讨论门口人数（讨论区 P2 前为种子数）
 }
@@ -57,6 +64,10 @@ export interface Video extends VideoMapState {
   creator: string;
   duration: string;
   collectionId: string;
+  /** 必填（V1.2 变更摘要 #14，群岛信息面板必显）。正式数据复用抖音封面，demo seed 用占位图。 */
+  cover: string;
+  /** 平台原视频链接（沿用 source_assets.sourceUrl）。缺失=上传文件兜底录入，群岛信息面板"查看原视频"入口整体隐藏。 */
+  sourceUrl?: string;
   coreQuestion: string;
   videoType: VideoType;
   typeConfidence: number;
@@ -110,6 +121,8 @@ export const VIDEOS: Record<string, Video> = {
     creator: "老唐说经济",
     duration: "15:20",
     collectionId: "c1",
+    cover: "/covers/v1.svg",
+    sourceUrl: "https://www.douyin.com/video/7314092837465021751",
     coreQuestion: "通胀，到底是货币现象，还是一场分配的结果？",
     videoType: "argument",
     typeConfidence: 0.86,
@@ -176,7 +189,6 @@ export const VIDEOS: Record<string, Video> = {
             fromVideoId: "v2",
           },
         ],
-        toClarify: "判断当前通胀更像哪一类，以及相应的政策取舍逻辑该怎么选",
       },
       extend: [
         {
@@ -201,6 +213,8 @@ export const VIDEOS: Record<string, Video> = {
     creator: "老唐说经济",
     duration: "9:40",
     collectionId: "c1",
+    cover: "/covers/v2.svg",
+    sourceUrl: "https://www.douyin.com/video/7318554120963344672",
     coreQuestion: "央行一「加息」，到底在加哪个数字，凭什么能管住物价？",
     videoType: "concept",
     typeConfidence: 0.74,
@@ -228,7 +242,6 @@ export const VIDEOS: Record<string, Video> = {
             fromVideoId: "v1",
           },
         ],
-        toClarify: "这条链条对成本推动型通胀为什么会失灵？失灵在哪一环",
       },
       extend: [
         {
@@ -246,6 +259,8 @@ export const VIDEOS: Record<string, Video> = {
     creator: "财经小林",
     duration: "12:10",
     collectionId: "c1",
+    cover: "/covers/v3.svg",
+    sourceUrl: "https://www.douyin.com/video/7322017465908346118",
     coreQuestion: "名义工资在涨，为什么体感反而更穷了？",
     videoType: "argument",
     typeConfidence: 0.81,
@@ -282,7 +297,6 @@ export const VIDEOS: Record<string, Video> = {
             fromVideoId: "v1",
           },
         ],
-        toClarify: "名义工资的涨幅，是被谁的议价能力决定的？普通打工者有多少话语权",
       },
       extend: [
         {
@@ -300,6 +314,8 @@ export const VIDEOS: Record<string, Video> = {
     creator: "史谈",
     duration: "11:00",
     collectionId: "c3",
+    cover: "/covers/v4.svg",
+    sourceUrl: "https://www.douyin.com/video/7296733814501283136",
     coreQuestion: "赤壁之战，真的是一把火决定的吗？",
     videoType: "argument",
     typeConfidence: 0.83,
@@ -335,7 +351,6 @@ export const VIDEOS: Record<string, Video> = {
             fromVideoId: "v5",
           },
         ],
-        toClarify: "当时的「大疫」到底是什么病？在别的战役里也左右过胜负吗",
       },
       extend: [
         {
@@ -358,6 +373,8 @@ export const VIDEOS: Record<string, Video> = {
     creator: "史谈",
     duration: "13:30",
     collectionId: "c3",
+    // 无 sourceUrl：上传文件兜底录入的示例，面板"查看原视频"入口应整体隐藏（变更摘要 #14）
+    cover: "/covers/v5.svg",
     coreQuestion: "剥开演义的滤镜，诸葛亮的真实分量在哪？",
     videoType: "compare",
     typeConfidence: 0.7,
@@ -385,7 +402,6 @@ export const VIDEOS: Record<string, Video> = {
             fromVideoId: "v4",
           },
         ],
-        toClarify: "「治理能力」和「军事才能」，哪一种更难被演义放大或压低？为什么",
       },
       extend: [
         {
@@ -403,6 +419,8 @@ export const VIDEOS: Record<string, Video> = {
     creator: "老唐说经济",
     duration: "10:20",
     collectionId: "c2",
+    cover: "/covers/v6.svg",
+    sourceUrl: "https://www.douyin.com/video/7305128847229310242",
     coreQuestion: "GDP 增长，到底增的是什么？",
     videoType: "concept",
     typeConfidence: 0.78,
@@ -416,7 +434,6 @@ export const VIDEOS: Record<string, Video> = {
     cognitiveExpansion: {
       gapFill: {
         known: [],
-        toClarify: "被 GDP 漏掉的那部分，如果要补一个替代指标，该补什么",
       },
       extend: [
         {
@@ -434,6 +451,8 @@ export const VIDEOS: Record<string, Video> = {
     creator: "财经小林",
     duration: "8:50",
     collectionId: "c2",
+    cover: "/covers/v7.svg",
+    sourceUrl: "https://www.douyin.com/video/7331946205178691874",
     coreQuestion: "一国货币的价格，凭什么涨跌？",
     videoType: "concept",
     typeConfidence: 0.69,
@@ -452,7 +471,6 @@ export const VIDEOS: Record<string, Video> = {
             fromVideoId: "v2",
           },
         ],
-        toClarify: "本国加息之后，汇率和前面讲的国内通胀治理之间会不会互相打架",
       },
       extend: [
         {
@@ -470,6 +488,8 @@ export const VIDEOS: Record<string, Video> = {
     creator: "硅基观察",
     duration: "14:10",
     collectionId: "c4",
+    cover: "/covers/v8.svg",
+    sourceUrl: "https://www.douyin.com/video/7327764519082226982",
     coreQuestion: "AI 到来，是取代你，还是重塑你的工作？",
     videoType: "argument",
     typeConfidence: 0.79,
@@ -506,7 +526,6 @@ export const VIDEOS: Record<string, Video> = {
             fromVideoId: "v9",
           },
         ],
-        toClarify: "「重塑」对具体某一个人成立的前提是什么？他本人有没有条件满足这个前提",
       },
       extend: [
         {
@@ -529,6 +548,8 @@ export const VIDEOS: Record<string, Video> = {
     creator: "硅基观察",
     duration: "11:40",
     collectionId: "c4",
+    cover: "/covers/v9.svg",
+    sourceUrl: "https://www.douyin.com/video/7334102938475203913",
     coreQuestion: "哪些人会最先被 AI 顶掉？",
     videoType: "intro",
     typeConfidence: 0.62,
@@ -547,7 +568,6 @@ export const VIDEOS: Record<string, Video> = {
             fromVideoId: "v8",
           },
         ],
-        toClarify: "「规则清晰、重复度高」这个筛选标准，套在你自己的工作上，哪部分会先被划进去",
       },
       extend: [
         {
@@ -605,11 +625,10 @@ export const COLLECTIONS: Record<string, Collection> = {
     cognitiveExpansion: {
       gapFill: {
         known: [
-          { point: "需求拉动、成本推动的区分" },
-          { point: "基准利率→借贷成本→需求的传导链条" },
-          { point: "名义工资与实际购买力的差别" },
+          { point: "需求拉动、成本推动的区分", fromTitle: "通胀到底是谁的锅", fromVideoId: "v1" },
+          { point: "基准利率→借贷成本→需求的传导链条", fromTitle: "央行加息在加什么", fromVideoId: "v2" },
+          { point: "名义工资与实际购买力的差别", fromTitle: "为什么工资涨了还是变穷", fromVideoId: "v3" },
         ],
-        toClarify: "这一整组视频都没细算：这一轮加息最后真把通胀压下来了吗，代价有多大",
       },
       extend: [
         {
@@ -660,10 +679,9 @@ export const COLLECTIONS: Record<string, Collection> = {
     cognitiveExpansion: {
       gapFill: {
         known: [
-          { point: "「大疫，吏士多死」的史料记载" },
-          { point: "演义叙事对军事奇谋的放大效应" },
+          { point: "「大疫，吏士多死」的史料记载", fromTitle: "赤壁之战的另一种真相", fromVideoId: "v4" },
+          { point: "演义叙事对军事奇谋的放大效应", fromTitle: "诸葛亮被高估了吗", fromVideoId: "v5" },
         ],
-        toClarify: "正史留白的地方，通常是被谁、以什么理由填上的",
       },
       extend: [
         {
@@ -706,10 +724,9 @@ export const COLLECTIONS: Record<string, Collection> = {
     cognitiveExpansion: {
       gapFill: {
         known: [
-          { point: "「任务被拆解」与「岗位被重组」的区别" },
-          { point: "「高度例行岗位」最先受冲击的判断" },
+          { point: "「任务被拆解」与「岗位被重组」的区别", fromTitle: "AI 不会抢你工作", fromVideoId: "v8" },
+          { point: "「高度例行岗位」最先受冲击的判断", fromTitle: "被 AI 取代的第一批人", fromVideoId: "v9" },
         ],
-        toClarify: "「重塑」和「取代」这两个结论，各自成立的前提分别是什么，你所在的岗位更接近哪一个",
       },
       extend: [
         {

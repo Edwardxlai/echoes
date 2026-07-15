@@ -1,9 +1,24 @@
 import { notFound } from "next/navigation";
 import { collectionsOf, getCategory } from "@/lib/data";
-import { REGION_SCENES } from "@/lib/map-config";
+import { REGION_SCENES, type MapItem } from "@/lib/map-config";
+import { hasRealMapContent, realCollectionsOf } from "@/lib/server/real-data";
 import { MapStage, type HotspotDef } from "@/components/map/MapStage";
 import { RegionTerrain } from "@/components/map/RegionTerrain";
-import { MapKicker, MapStat, MapTopbar } from "@/components/map/MapChrome";
+import { MapKicker, MapReturnControl, MapStat, MapTopbar } from "@/components/map/MapChrome";
+
+export const dynamic = "force-dynamic";
+
+/** 地标渲染所需的最小形状：种子 Collection 与真实解析合集都折算成它。 */
+interface LandmarkDef {
+  id: string;
+  name: string;
+  videoCount: number;
+  echoCount: number;
+  terrain: string;
+  glyphKind: "city" | "tower" | "ruins" | "port";
+  mapItem: MapItem;
+  synthesisRoute?: string;
+}
 
 const REGION_COPY: Record<string, { eyebrow: string; description: string }> = {
   eco: {
@@ -29,54 +44,120 @@ export default async function RegionMapPage({
   const category = getCategory(categoryId);
   if (!category) notFound();
 
-  const collections = collectionsOf(categoryId);
   const scene = REGION_SCENES[categoryId];
-  const regionItems = scene?.items ?? [];
-  const itemByEntity = new Map(regionItems.map((item) => [item.entityId, item]));
   const copy = REGION_COPY[categoryId] ?? {
     eyebrow: "被整理成空间的主题合集",
     description: "每一处地标都通向一组视频，位置固定，方便你再次回来。",
   };
 
-  const items: HotspotDef[] = collections.flatMap((collection) => {
-    const mapItem = itemByEntity.get(collection.id);
-    if (!mapItem) return [];
+  // 有真实解析内容时地图展示真实合集；否则落种子数据
+  let landmarks: LandmarkDef[];
+  if (hasRealMapContent()) {
+    landmarks = realCollectionsOf(categoryId).map((real) => ({
+      id: real.id,
+      name: real.name,
+      videoCount: real.videoCount,
+      echoCount: real.echoCount,
+      terrain: real.terrain,
+      glyphKind: real.glyphKind,
+      mapItem: real.mapItem,
+    }));
+  } else {
+    const seedItems = new Map((scene?.items ?? []).map((item) => [item.entityId, item]));
+    landmarks = collectionsOf(categoryId).flatMap((collection) => {
+      const mapItem = seedItems.get(collection.id);
+      if (!mapItem) return [];
+      return [
+        {
+          id: collection.id,
+          name: collection.name,
+          videoCount: collection.videoIds.length,
+          echoCount: collection.echoCount,
+          terrain: collection.terrain,
+          glyphKind: collection.glyphKind,
+          mapItem,
+          synthesisRoute: collection.synthesis ? `${mapItem.route}/synthesis` : undefined,
+        },
+      ];
+    });
+  }
 
-    return [
-      {
-        id: mapItem.id,
-        x: mapItem.x,
-        y: mapItem.y,
-        title: collection.name,
-        meta: (
-          <>
-            {collection.videoIds.length} 集
-            {collection.echoCount > 0 && <span className="gold">✦ {collection.echoCount} 回响</span>}
-          </>
-        ),
-        desc: `${collection.terrain}。进入群岛查看每一条视频，或先看这组内容的整体关系。`,
-        route: mapItem.route,
-        routeLabel: "进入群岛",
-        secondaryRoute: collection.synthesis ? `${mapItem.route}/synthesis` : undefined,
-        secondaryLabel: "看全貌",
-        echo: collection.echoCount > 0,
-        focusX: mapItem.cameraTarget.target[0],
-        focusY: mapItem.cameraTarget.target[1],
-        focusZoom: mapItem.cameraTarget.zoom,
-        eyebrow: "主题地标",
-        hitArea: mapItem.hitArea,
-        hitBox: mapItem.hitBox,
-      },
-    ];
-  });
+  const items: HotspotDef[] = landmarks.map((landmark) => ({
+    id: landmark.mapItem.id,
+    x: landmark.mapItem.x,
+    y: landmark.mapItem.y,
+    title: landmark.name,
+    meta: (
+      <>
+        {landmark.videoCount} 集
+        {landmark.echoCount > 0 && <span className="gold">✦ {landmark.echoCount} 回响</span>}
+      </>
+    ),
+    desc: `${landmark.terrain}。进入群岛查看每一条视频，或先看这组内容的整体关系。`,
+    route: landmark.mapItem.route,
+    routeLabel: "进入群岛",
+    secondaryRoute: landmark.synthesisRoute,
+    secondaryLabel: landmark.synthesisRoute ? "看全貌" : undefined,
+    echo: landmark.echoCount > 0,
+    focusX: landmark.mapItem.cameraTarget.target[0],
+    focusY: landmark.mapItem.cameraTarget.target[1],
+    focusZoom: categoryId === "eco" ? 1.12 : landmark.mapItem.cameraTarget.zoom,
+    eyebrow: "主题地标",
+    hitArea: landmark.mapItem.hitArea,
+    hitBox: landmark.mapItem.hitBox,
+  }));
 
-  const videoCount = collections.reduce((sum, collection) => sum + collection.videoIds.length, 0);
+  const videoCount = landmarks.reduce((sum, landmark) => sum + landmark.videoCount, 0);
+  const echoTotal = landmarks.reduce((sum, landmark) => sum + landmark.echoCount, 0);
+
+  if (categoryId === "eco") {
+    return (
+      <main className="mapPage mapPage--region mapPage--eco mapPage--regionAtlas">
+        <div className="mapPage__grain" aria-hidden="true" />
+        <h1 className="srOnly">{category.name}知识区域</h1>
+
+        <MapReturnControl href="/" label="世界地图" />
+
+        <section
+          className="mapSceneSection mapSceneSection--regionAtlas"
+          aria-label={`${category.name}区域地图`}
+        >
+          <MapStage
+            className="mapStage--regionAtlas"
+            storageRevision="economy-atlas-v2"
+            initialZoom={0.9}
+            sceneAspectRatio={1000 / 560}
+            fitMode="contain"
+            fitPadding={{ desktop: 0.9, mobile: 0.84 }}
+            resetViewOnPanelClose
+            lockVisualOnSelection
+            background={
+              <RegionTerrain
+                categoryId={categoryId}
+                landmarks={landmarks.map((landmark) => ({
+                  item: landmark.mapItem,
+                  glyphKind: landmark.glyphKind,
+                }))}
+              />
+            }
+            items={items}
+          />
+        </section>
+
+        <div className="regionAtlasLocator" aria-label={`${category.name}区域，共 ${landmarks.length} 处地标`}>
+          <span>REGION 01</span>
+          <strong>{category.name}区域</strong>
+          <i aria-hidden="true" />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={`mapPage mapPage--region mapPage--${categoryId}`}>
       <div className="mapPage__grain" aria-hidden="true" />
       <div className="mapShell mapShell--inner">
-        <MapTopbar backHref="/" backLabel="返回世界地图" status={`${collections.length} 个地标 · ${category.echoCount} 次回响`} />
+        <MapTopbar backHref="/" backLabel="返回世界地图" status={`${landmarks.length} 个地标 · ${echoTotal} 次回响`} />
 
         <header className="mapIntro">
           <div className="mapIntro__copy">
@@ -85,9 +166,9 @@ export default async function RegionMapPage({
             <p>{copy.description}</p>
           </div>
           <div className="mapStats mapStats--inner" aria-label="区域概况">
-            <MapStat value={collections.length} label="主题地标" />
+            <MapStat value={landmarks.length} label="主题地标" />
             <MapStat value={videoCount} label="视频岛屿" />
-            <MapStat value={category.echoCount} label="回响连接" />
+            <MapStat value={echoTotal} label="回响连接" />
           </div>
         </header>
       </div>
@@ -98,13 +179,19 @@ export default async function RegionMapPage({
           <p>地貌不是分类标签，而是帮助你记住内容位置的空间线索</p>
         </div>
         <MapStage
+          className={categoryId === "his" ? "mapStage--historyDiscovery" : undefined}
+          storageRevision={categoryId === "his" ? "history-art-v1" : undefined}
+          sceneAspectRatio={categoryId === "his" ? 1586 / 992 : undefined}
+          fitMode={categoryId === "his" ? "contain" : undefined}
+          fitPadding={categoryId === "his" ? { desktop: 0.96, mobile: 0.84 } : undefined}
+          discoveryNamespace={`region:${categoryId}`}
           background={
             <RegionTerrain
               categoryId={categoryId}
-              landmarks={regionItems.flatMap((mapItem) => {
-                const collection = collections.find((item) => item.id === mapItem.entityId);
-                return collection ? [{ item: mapItem, glyphKind: collection.glyphKind }] : [];
-              })}
+              landmarks={landmarks.map((landmark) => ({
+                item: landmark.mapItem,
+                glyphKind: landmark.glyphKind,
+              }))}
             />
           }
           items={items}

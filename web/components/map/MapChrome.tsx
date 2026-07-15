@@ -1,4 +1,27 @@
 import Link from "next/link";
+import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
+
+export function MapReturnControl({
+  href,
+  label,
+}: {
+  href: string;
+  label: string;
+}) {
+  return (
+    <Link className="regionReturn" href={href} aria-label={`返回${label}`}>
+      <span className="regionReturn__glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M10.5 5.5 4 12l6.5 6.5M4.5 12H20" />
+        </svg>
+      </span>
+      <span className="regionReturn__copy">
+        <small>返回上一级</small>
+        <strong>{label}</strong>
+      </span>
+    </Link>
+  );
+}
 
 export function MapTopbar({
   backHref,
@@ -11,13 +34,7 @@ export function MapTopbar({
 }) {
   return (
     <nav className="mapTopbar" aria-label="地图导航">
-      <Link className="mapIdentity" href="/" aria-label="回响世界地图首页">
-        <span className="mapIdentity__sigil" aria-hidden="true">
-          <span />
-        </span>
-        <span className="mapIdentity__name">回响</span>
-        <span className="mapIdentity__edition">ECHOES / 2026</span>
-      </Link>
+      <BrandHomeLink className="mapTopbar__brand" showEdition />
 
       {backHref ? (
         <Link className="mapBacklink" href={backHref}>

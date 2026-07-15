@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCollection, videosOf } from "@/lib/data";
 import { SynthesisPoints } from "@/components/reader/SynthesisPoints";
 import { CognitiveExpansionBlock } from "@/components/reader/CognitiveExpansionBlock";
+import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
 
 export default async function CollectionSynthesisPage({
   params,
@@ -17,11 +18,11 @@ export default async function CollectionSynthesisPage({
 
   return (
     <div className="doc">
+      <BrandHomeLink className="readerBrand" />
       <Link className="backlink" href={`/collection/${collectionId}`}>
         ← {collection.name} · 群岛
       </Link>
 
-      <div className="kick">这组内容共同回答</div>
       <h1 className="display">
         {collection.synthesis?.seriesQuestion ?? `${collection.name}：这组视频合起来在说什么？`}
       </h1>
@@ -47,7 +48,6 @@ export default async function CollectionSynthesisPage({
       <div className="sh">
         <span className="no">壹</span>
         <span className="tt">知识点</span>
-        <span className="hint">明星知识点至少 2 个来源，不是拼一条更长的脉络</span>
       </div>
       {collection.synthesis ? (
         <SynthesisPoints points={collection.synthesis.points} />
@@ -62,7 +62,7 @@ export default async function CollectionSynthesisPage({
           <div className="sh">
             <span className="no">贰</span>
             <span className="tt">认知·拓展</span>
-            <span className="sub">这一组你已知的，未知的，值得追问的</span>
+            <span className="sub">你已知的，未知的，值得追问的</span>
           </div>
           <CognitiveExpansionBlock
             data={collection.cognitiveExpansion}

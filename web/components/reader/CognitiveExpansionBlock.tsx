@@ -7,9 +7,9 @@ import type { CognitiveExpansion } from "@/lib/data";
 /* 认知·拓展：三个节点（已有/补缺/延伸）挂在一根发丝线上——脉络的点线语言，
    点亮哪个节点，下方浮现哪块素色板，一次只看一块。
    三块板共用同一副书摘卡骨架（参照 Readwise Daily Review / 微信读书分享卡）：
-   条目 = 18px 宋体正文 + "——"灰色落款行。落款承载各自的元信息：
-   已有=出处，补缺=为什么没有答案，延伸=门口人数。延伸条目点开出 AI 的 hint 和
-   进同题讨论的门（门票在讨论区门口收，本页零输入框）。
+   条目 = 18px 宋体正文，已有/延伸带"——"灰色落款行承载元信息（已有=出处，
+   延伸=门口人数）；补缺无落款，戳破+补上连读成一段，内容自己说话。
+   延伸条目点开出 AI 的 hint 和进同题讨论的门（门票在讨论区门口收，本页零输入框）。
    讨论区为 P2（PRD §6.5），门口人数暂为种子数据；路由建成后 .door 换成 Link。 */
 
 type TabKey = "已有" | "补缺" | "延伸";
@@ -26,7 +26,14 @@ export function CognitiveExpansionBlock({
   scope?: "video" | "collection";
 }) {
   const known = data.gapFill.known;
-  const tabs: TabKey[] = known.length ? ["已有", "补缺", "延伸"] : ["补缺", "延伸"];
+  const gap = data.gapFill.gap ?? "";
+  const fill = data.gapFill.fill ?? "";
+  // 三块各自有内容才占一个 tab：已有靠积累、补缺靠承重空洞（门控）、延伸恒在
+  const tabs: TabKey[] = [
+    ...(known.length ? (["已有"] as TabKey[]) : []),
+    ...(gap ? (["补缺"] as TabKey[]) : []),
+    "延伸",
+  ];
   const [tab, setTab] = useState<TabKey>(tabs[0]);
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
@@ -58,16 +65,13 @@ export function CognitiveExpansionBlock({
                 <div className="xsrc">
                   ——{" "}
                   {k.fromTitle ? (
-                    <>
-                      你看过的
-                      {k.fromVideoId ? (
-                        <Link className="kfrom" href={`/video/${k.fromVideoId}`}>
-                          《{k.fromTitle}》
-                        </Link>
-                      ) : (
-                        <>《{k.fromTitle}》</>
-                      )}
-                    </>
+                    k.fromVideoId ? (
+                      <Link className="kfrom" href={`/video/${k.fromVideoId}`}>
+                        《{k.fromTitle}》
+                      </Link>
+                    ) : (
+                      <>《{k.fromTitle}》</>
+                    )
                   ) : scope === "collection" ? (
                     "这组视频里讲过"
                   ) : (
@@ -84,10 +88,9 @@ export function CognitiveExpansionBlock({
 
         {tab === "补缺" && (
           <div className="xentry">
-            <div className={`xq${hang(data.gapFill.toClarify)}`}>
-              {data.gapFill.toClarify}
-            </div>
-            <div className="xsrc">—— 这一题，AI 不给答案，留给你</div>
+            {/* 两拍不贴标签：gap 做点题引子，fill 换行成背景正文，无落款 */}
+            <div className={`xq${hang(gap)}`}>{gap}</div>
+            {fill && <p className={`xfill${hang(fill)}`}>{fill}</p>}
           </div>
         )}
 

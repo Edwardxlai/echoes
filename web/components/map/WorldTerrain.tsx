@@ -7,17 +7,17 @@ import { MapActiveContext } from "./MapStage";
 const FOCUS_IMAGES = [
   {
     id: "region-eco",
-    src: "/map/world/world-focus-economy.png",
+    src: "/map/world/world_economy_visual_focus_lod1_v01.webp",
     className: "worldTerrainArt__focus worldTerrainArt__focus--economy",
   },
   {
     id: "region-tech",
-    src: "/map/world/world-focus-technology.png",
+    src: "/map/world/world_technology_visual_focus_lod1_v01.webp",
     className: "worldTerrainArt__focus worldTerrainArt__focus--technology",
   },
   {
     id: "region-his",
-    src: "/map/world/world-focus-history.png",
+    src: "/map/world/world_history_visual_focus_lod1_v01.webp",
     className: "worldTerrainArt__focus worldTerrainArt__focus--history",
   },
 ] as const;
@@ -29,7 +29,7 @@ export function WorldTerrain() {
     <div className="worldTerrainArt" data-active-region={activeId ?? undefined}>
       <Image
         className="worldTerrainArt__base"
-        src="/map/world/world-base.png"
+        src="/map/world/world_master_visual_default_lod1_v01.webp"
         alt=""
         fill
         sizes="(max-width: 560px) 460px, min(1360px, 100vw)"

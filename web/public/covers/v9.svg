@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#dbe8d8"/>
+      <stop offset="1" stop-color="#bad3b7"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="400" fill="url(#g)"/>
+  <circle cx="252" cy="52" r="110" fill="#ffffff" opacity="0.16"/>
+  <circle cx="26" cy="368" r="76" fill="#ffffff" opacity="0.1"/>
+  <text x="26" y="192" font-family="'Songti SC','Noto Serif SC',Georgia,serif" font-weight="600" font-size="56" fill="#40523f" opacity="0.85">取代</text>
+  <rect x="27" y="212" width="34" height="3" fill="#40523f" opacity="0.38"/>
+  <text x="26" y="346" font-family="system-ui,-apple-system,sans-serif" font-size="16" fill="#40523f" opacity="0.8">被 AI 取代的第一批人</text>
+  <text x="26" y="372" font-family="system-ui,-apple-system,sans-serif" font-size="12" fill="#40523f" opacity="0.55">硅基观察 · 11:40</text>
+</svg>

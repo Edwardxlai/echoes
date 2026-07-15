@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -27,6 +28,12 @@ export interface HotspotDef {
   routeLabel?: string;
   secondaryRoute?: string;
   secondaryLabel?: string;
+  /** Cover thumbnail shown in the info panel (PRD V1.2 change #14; mandatory for videos). */
+  cover?: string;
+  coverAlt?: string;
+  /** External source-platform URL. Rendered as a low-weight link; omitted → no entry at all. */
+  sourceHref?: string;
+  sourceLabel?: string;
   echo?: boolean;
   dim?: boolean;
   /** Percentage coordinates (0–100) to centre when this hotspot is selected. */
@@ -56,10 +63,20 @@ interface MapStageProps {
   className?: string;
   /** Changes the persistence namespace when the scene coordinate system changes. */
   storageRevision?: string;
+  /** Server-rendered home zoom before the viewport can be measured. */
+  initialZoom?: number;
   /** Fixes the camera canvas to the supplied artwork ratio. */
   sceneAspectRatio?: number;
+  /** Chooses whether the initial/reset view shows the whole scene or fills the viewport. */
+  fitMode?: "contain" | "cover";
+  /** Matches a scene's authored breathing room at desktop and mobile widths. */
+  fitPadding?: { desktop: number; mobile: number };
+  /** Returns to the fitted scene when the panel close action is used. */
+  resetViewOnPanelClose?: boolean;
   /** Keep the selected scene visible while the pointer crosses another region. */
   lockVisualOnSelection?: boolean;
+  /** Persist seen data ids and reveal only ids added after the first visit. */
+  discoveryNamespace?: string;
 }
 
 export interface MapCameraState {
@@ -82,6 +99,20 @@ interface DragState {
   dragging: boolean;
 }
 
+interface PointerSample {
+  clientX: number;
+  clientY: number;
+  pointerType: string;
+}
+
+interface PinchState {
+  pointerIds: [number, number];
+  startDistance: number;
+  startZoom: number;
+  anchorSceneX: number;
+  anchorSceneY: number;
+}
+
 interface StoredMapStageState {
   version: 1;
   camera: MapCameraState;
@@ -90,22 +121,43 @@ interface StoredMapStageState {
   scene?: ViewportSize;
 }
 
-const MIN_ZOOM = 1;
+interface StoredDiscoveryState {
+  version: 1;
+  discoveredIds: string[];
+}
+
+interface MapDiscoveryValue {
+  enabled: boolean;
+  ready: boolean;
+  discoveredIds: ReadonlySet<string>;
+  revealingIds: ReadonlySet<string>;
+}
+
+const MIN_ZOOM = 0.65;
+const BASE_ZOOM = 1;
 const MAX_ZOOM = 2.4;
 const DEFAULT_FOCUS_ZOOM = 1.35;
-const BUTTON_ZOOM_STEP = 0.2;
+const BUTTON_ZOOM_STEP = 0.1;
 const KEYBOARD_PAN_STEP = 44;
 const DRAG_THRESHOLD = 7;
-const BASE_PAN_RATIO = 0.08;
+const BASE_PAN_RATIO = 0.12;
 const STORAGE_PREFIX = "echoes:map-stage:";
+const DISCOVERY_STORAGE_PREFIX = "echoes:map-discovery:";
 const CAMERA_EPSILON = 0.001;
-const DEFAULT_CAMERA: MapCameraState = { x: 0, y: 0, zoom: MIN_ZOOM };
+const DEFAULT_CAMERA: MapCameraState = { x: 0, y: 0, zoom: BASE_ZOOM };
 
 /**
  * The visually active map object. Hover and keyboard focus take precedence over
  * the persistent selection so terrain can respond without opening the panel.
  */
 export const MapActiveContext = createContext<string | null>(null);
+
+export const MapDiscoveryContext = createContext<MapDiscoveryValue>({
+  enabled: false,
+  ready: true,
+  discoveredIds: new Set<string>(),
+  revealingIds: new Set<string>(),
+});
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -128,7 +180,7 @@ function constrainCamera(
   viewport: ViewportSize,
   scene: ViewportSize = viewport,
 ): MapCameraState {
-  const zoom = clamp(isFiniteNumber(camera.zoom) ? camera.zoom : MIN_ZOOM, MIN_ZOOM, MAX_ZOOM);
+  const zoom = clamp(isFiniteNumber(camera.zoom) ? camera.zoom : BASE_ZOOM, MIN_ZOOM, MAX_ZOOM);
   const x = isFiniteNumber(camera.x) ? camera.x : 0;
   const y = isFiniteNumber(camera.y) ? camera.y : 0;
 
@@ -151,6 +203,31 @@ function constrainCamera(
     y: clamp(y, -maxY, maxY),
     zoom,
   };
+}
+
+function getFitZoom(
+  viewport: ViewportSize,
+  scene: ViewportSize,
+  fitMode: "contain" | "cover" = "contain",
+  fitPadding = 1,
+) {
+  if (
+    viewport.width <= 0 ||
+    viewport.height <= 0 ||
+    scene.width <= 0 ||
+    scene.height <= 0
+  ) {
+    return BASE_ZOOM;
+  }
+
+  const widthRatio = viewport.width / scene.width;
+  const heightRatio = viewport.height / scene.height;
+  const requested =
+    fitMode === "cover"
+      ? Math.max(widthRatio, heightRatio)
+      : Math.min(BASE_ZOOM, widthRatio, heightRatio);
+
+  return clamp(requested * fitPadding, MIN_ZOOM, MAX_ZOOM);
 }
 
 function cameraFromStoredValue(value: unknown): MapCameraState | null {
@@ -245,11 +322,21 @@ export function MapStage({
   items,
   className,
   storageRevision,
+  initialZoom,
   sceneAspectRatio,
+  fitMode = "contain",
+  fitPadding,
+  resetViewOnPanelClose = false,
   lockVisualOnSelection = false,
+  discoveryNamespace,
 }: MapStageProps) {
+  const desktopFitPadding = fitPadding?.desktop ?? 1;
+  const mobileFitPadding = fitPadding?.mobile ?? desktopFitPadding;
   const pathname = usePathname();
   const storageKey = `${STORAGE_PREFIX}${pathname}${storageRevision ? `:${storageRevision}` : ""}`;
+  const discoveryStorageKey = discoveryNamespace
+    ? `${DISCOVERY_STORAGE_PREFIX}${discoveryNamespace}:v1`
+    : null;
   const itemSignature = items.map((item) => item.id).join("\u001f");
   const validIds = useMemo(() => new Set(items.map((item) => item.id)), [items]);
   const itemById = useMemo(
@@ -257,12 +344,20 @@ export function MapStage({
     [items],
   );
 
-  const [camera, setCamera] = useState<MapCameraState>(DEFAULT_CAMERA);
+  const [camera, setCamera] = useState<MapCameraState>(() => ({
+    ...DEFAULT_CAMERA,
+    zoom: clamp(initialZoom ?? DEFAULT_CAMERA.zoom, MIN_ZOOM, MAX_ZOOM),
+  }));
   const [selected, setSelected] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [restoredStorageKey, setRestoredStorageKey] = useState<string | null>(null);
+  const [discoveryState, setDiscoveryState] = useState<{
+    storageKey: string | null;
+    discoveredIds: string[];
+    revealingIds: string[];
+  }>({ storageKey: null, discoveredIds: [], revealingIds: [] });
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSizeRef = useRef<ViewportSize>({ width: 0, height: 0 });
@@ -271,6 +366,8 @@ export function MapStage({
   const cameraRef = useRef(camera);
   const selectedRef = useRef(selected);
   const dragRef = useRef<DragState | null>(null);
+  const activePointersRef = useRef(new Map<number, PointerSample>());
+  const pinchRef = useRef<PinchState | null>(null);
   const suppressClickUntilRef = useRef(0);
   const hotspotRefs = useRef(new Map<string, HTMLButtonElement>());
   const primaryActionRef = useRef<HTMLAnchorElement>(null);
@@ -283,6 +380,98 @@ export function MapStage({
   const visualActiveId =
     lockVisualOnSelection && selected ? selected : (hovered ?? focused ?? selected);
   const zoomPercent = Math.round(camera.zoom * 100);
+  const discoveryReady =
+    discoveryStorageKey === null || discoveryState.storageKey === discoveryStorageKey;
+  const discoveredIds = useMemo(
+    () => new Set(discoveryState.discoveredIds),
+    [discoveryState.discoveredIds],
+  );
+  const revealingIds = useMemo(
+    () => new Set(discoveryState.revealingIds),
+    [discoveryState.revealingIds],
+  );
+  const discoveryValue = useMemo<MapDiscoveryValue>(
+    () => ({
+      enabled: discoveryStorageKey !== null,
+      ready: discoveryReady,
+      discoveredIds,
+      revealingIds,
+    }),
+    [discoveredIds, discoveryReady, discoveryStorageKey, revealingIds],
+  );
+
+  useEffect(() => {
+    if (!discoveryStorageKey) {
+      setDiscoveryState({ storageKey: null, discoveredIds: [], revealingIds: [] });
+      return;
+    }
+
+    const currentIds = itemSignature ? itemSignature.split("\u001f") : [];
+    let previousIds: string[] | null = null;
+
+    try {
+      const raw = window.localStorage.getItem(discoveryStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<StoredDiscoveryState>;
+        if (parsed.version === 1 && Array.isArray(parsed.discoveredIds)) {
+          previousIds = parsed.discoveredIds.filter(
+            (id): id is string => typeof id === "string",
+          );
+        }
+      }
+    } catch {
+      previousIds = null;
+    }
+
+    // The first visit establishes a baseline. Only ids added on later visits
+    // count as discoveries, which makes a newly ingested collection visible.
+    if (previousIds === null) {
+      setDiscoveryState({
+        storageKey: discoveryStorageKey,
+        discoveredIds: currentIds,
+        revealingIds: [],
+      });
+      try {
+        window.localStorage.setItem(
+          discoveryStorageKey,
+          JSON.stringify({ version: 1, discoveredIds: currentIds } satisfies StoredDiscoveryState),
+        );
+      } catch {
+        // The map remains usable when persistent storage is unavailable.
+      }
+      return;
+    }
+
+    const previousSet = new Set(previousIds);
+    const revealing = currentIds.filter((id) => !previousSet.has(id));
+    setDiscoveryState({
+      storageKey: discoveryStorageKey,
+      discoveredIds: previousIds,
+      revealingIds: revealing,
+    });
+
+    if (revealing.length === 0) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => {
+      const nextIds = [...new Set([...previousIds, ...currentIds])];
+      setDiscoveryState({
+        storageKey: discoveryStorageKey,
+        discoveredIds: nextIds,
+        revealingIds: [],
+      });
+      try {
+        window.localStorage.setItem(
+          discoveryStorageKey,
+          JSON.stringify({ version: 1, discoveredIds: nextIds } satisfies StoredDiscoveryState),
+        );
+      } catch {
+        // The reveal already completed visually, persistence is best effort.
+      }
+    }, reducedMotion ? 80 : 2300);
+
+    return () => window.clearTimeout(timer);
+  }, [discoveryStorageKey, itemSignature]);
 
   const commitCamera = useCallback(
     (update: MapCameraState | ((current: MapCameraState) => MapCameraState)) => {
@@ -329,7 +518,17 @@ export function MapStage({
       viewportSizeRef.current,
       sceneSizeRef.current,
     );
-    const nextCamera = restored?.camera ?? DEFAULT_CAMERA;
+    // First visit opens on the whole continent, like the prototype hero shot.
+    const nextCamera = restored?.camera ?? {
+      x: 0,
+      y: 0,
+      zoom: getFitZoom(
+        viewportSizeRef.current,
+        sceneSizeRef.current,
+        fitMode,
+        viewportSizeRef.current.width <= 560 ? mobileFitPadding : desktopFitPadding,
+      ),
+    };
     const nextSelected = restored?.selected ?? null;
 
     cameraRef.current = nextCamera;
@@ -339,7 +538,45 @@ export function MapStage({
     setHovered(null);
     setFocused(null);
     setRestoredStorageKey(storageKey);
-  }, [itemSignature, storageKey, validIds]);
+
+    // Fixed-ratio scenes can receive their final responsive width one frame
+    // after hydration. Re-measure cover views so mobile does not open letterboxed.
+    if (
+      !restored &&
+      (fitMode === "cover" || desktopFitPadding !== 1 || mobileFitPadding !== 1)
+    ) {
+      const frame = window.requestAnimationFrame(() => {
+        const viewportRect = viewportRef.current?.getBoundingClientRect();
+        const sceneNode = cameraElementRef.current;
+        if (!viewportRect || !sceneNode || sceneNode.offsetWidth <= 0 || sceneNode.offsetHeight <= 0) {
+          return;
+        }
+
+        const nextViewport = { width: viewportRect.width, height: viewportRect.height };
+        const nextScene = { width: sceneNode.offsetWidth, height: sceneNode.offsetHeight };
+        viewportSizeRef.current = nextViewport;
+        sceneSizeRef.current = nextScene;
+        const next = constrainCamera(
+          {
+            x: 0,
+            y: 0,
+            zoom: getFitZoom(
+              nextViewport,
+              nextScene,
+              fitMode,
+              nextViewport.width <= 560 ? mobileFitPadding : desktopFitPadding,
+            ),
+          },
+          nextViewport,
+          nextScene,
+        );
+        cameraRef.current = next;
+        setCamera(next);
+      });
+
+      return () => window.cancelAnimationFrame(frame);
+    }
+  }, [desktopFitPadding, fitMode, itemSignature, mobileFitPadding, storageKey, validIds]);
 
   // Keep pan proportional on responsive resizes, then enforce the no-empty-edge
   // bounds at the new viewport size.
@@ -409,6 +646,18 @@ export function MapStage({
       persistSnapshot();
     };
   }, [persistSnapshot, restoredStorageKey, storageKey]);
+
+  useEffect(() => {
+    const clearGesture = () => {
+      activePointersRef.current.clear();
+      pinchRef.current = null;
+      dragRef.current = null;
+      setIsDragging(false);
+    };
+
+    window.addEventListener("blur", clearGesture);
+    return () => window.removeEventListener("blur", clearGesture);
+  }, []);
 
   const zoomAroundPoint = useCallback(
     (requestedZoom: number, pointX: number, pointY: number) => {
@@ -499,9 +748,24 @@ export function MapStage({
     [commitSelection, focusHotspot],
   );
 
+  const fitStage = useCallback(() => {
+    const viewport = viewportSizeRef.current;
+    commitCamera({
+      x: 0,
+      y: 0,
+      zoom: getFitZoom(
+        viewport,
+        sceneSizeRef.current,
+        fitMode,
+        viewport.width <= 560 ? mobileFitPadding : desktopFitPadding,
+      ),
+    });
+  }, [commitCamera, desktopFitPadding, fitMode, mobileFitPadding]);
+
   const closeSelection = useCallback(
-    (restoreHotspotFocus: boolean) => {
+    (restoreHotspotFocus: boolean, resetView = false) => {
       const previousId = selectedRef.current;
+      if (resetView) fitStage();
       commitSelection(null);
 
       if (restoreHotspotFocus && previousId) {
@@ -510,18 +774,77 @@ export function MapStage({
         });
       }
     },
-    [commitSelection],
+    [commitSelection, fitStage],
   );
 
+  // Reset returns to the fit view: with a frameless full-bleed stage, "100%"
+  // is no longer a meaningful home position.
   const resetStage = useCallback(() => {
-    commitCamera(DEFAULT_CAMERA);
+    fitStage();
     commitSelection(null);
     setHovered(null);
     setFocused(null);
-  }, [commitCamera, commitSelection]);
+  }, [commitSelection, fitStage]);
+
+  const startPinch = (viewport: HTMLDivElement) => {
+    const touchPointers = [...activePointersRef.current.entries()]
+      .filter(([, sample]) => sample.pointerType === "touch")
+      .slice(0, 2);
+    if (touchPointers.length < 2) return false;
+
+    const [[firstId, first], [secondId, second]] = touchPointers;
+    const rect = viewport.getBoundingClientRect();
+    const midpointX = (first.clientX + second.clientX) / 2 - rect.left - rect.width / 2;
+    const midpointY = (first.clientY + second.clientY) / 2 - rect.top - rect.height / 2;
+    const distance = Math.max(
+      1,
+      Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY),
+    );
+    const current = cameraRef.current;
+
+    pinchRef.current = {
+      pointerIds: [firstId, secondId],
+      startDistance: distance,
+      startZoom: current.zoom,
+      anchorSceneX: (midpointX - current.x) / current.zoom,
+      anchorSceneY: (midpointY - current.y) / current.zoom,
+    };
+    dragRef.current = null;
+    suppressClickUntilRef.current = Date.now() + 300;
+    setIsDragging(true);
+
+    for (const pointerId of [firstId, secondId]) {
+      try {
+        viewport.setPointerCapture(pointerId);
+      } catch {
+        // A pointer can end while the second contact is being registered.
+      }
+    }
+    return true;
+  };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+    if (event.pointerType !== "touch" && !event.isPrimary) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    activePointersRef.current.set(event.pointerId, {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      pointerType: event.pointerType,
+    });
+
+    if (event.pointerType === "touch" && pinchRef.current === null) {
+      const touchCount = [...activePointersRef.current.values()].filter(
+        (sample) => sample.pointerType === "touch",
+      ).length;
+      if (touchCount >= 2) {
+        event.preventDefault();
+        startPinch(event.currentTarget);
+        return;
+      }
+    }
+
+    if (pinchRef.current) return;
 
     dragRef.current = {
       pointerId: event.pointerId,
@@ -534,6 +857,40 @@ export function MapStage({
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pointer = activePointersRef.current.get(event.pointerId);
+    if (pointer) {
+      pointer.clientX = event.clientX;
+      pointer.clientY = event.clientY;
+    }
+
+    const pinch = pinchRef.current;
+    if (pinch) {
+      const first = activePointersRef.current.get(pinch.pointerIds[0]);
+      const second = activePointersRef.current.get(pinch.pointerIds[1]);
+      if (!first || !second) return;
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      const midpointX = (first.clientX + second.clientX) / 2 - rect.left - rect.width / 2;
+      const midpointY = (first.clientY + second.clientY) / 2 - rect.top - rect.height / 2;
+      const distance = Math.max(
+        1,
+        Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY),
+      );
+      const zoom = clamp(
+        pinch.startZoom * (distance / pinch.startDistance),
+        MIN_ZOOM,
+        MAX_ZOOM,
+      );
+
+      event.preventDefault();
+      commitCamera({
+        zoom,
+        x: midpointX - pinch.anchorSceneX * zoom,
+        y: midpointY - pinch.anchorSceneY * zoom,
+      });
+      return;
+    }
+
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
@@ -542,6 +899,7 @@ export function MapStage({
 
     if (!drag.dragging) {
       if (Math.hypot(deltaX, deltaY) < DRAG_THRESHOLD) return;
+      if (event.pointerType === "touch" && Math.abs(deltaY) > Math.abs(deltaX)) return;
       drag.dragging = true;
       setIsDragging(true);
       try {
@@ -560,27 +918,55 @@ export function MapStage({
   };
 
   const finishPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pinch = pinchRef.current;
+    const endedPinchPointer = pinch?.pointerIds.includes(event.pointerId) ?? false;
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    const endedDragPointer = drag?.pointerId === event.pointerId;
 
-    if (drag.dragging) {
+    activePointersRef.current.delete(event.pointerId);
+
+    if (endedPinchPointer || (endedDragPointer && drag?.dragging)) {
       // Suppress the synthetic click that can follow pointerup on touch devices.
       suppressClickUntilRef.current = Date.now() + 300;
     }
 
-    dragRef.current = null;
-    setIsDragging(false);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+
+    if (endedPinchPointer) {
+      pinchRef.current = null;
+      const touchPointers = [...activePointersRef.current.entries()].filter(
+        ([, sample]) => sample.pointerType === "touch",
+      );
+      if (touchPointers.length >= 2) {
+        startPinch(event.currentTarget);
+        return;
+      }
+
+      const remaining = touchPointers[0];
+      dragRef.current = remaining
+        ? {
+            pointerId: remaining[0],
+            startClientX: remaining[1].clientX,
+            startClientY: remaining[1].clientY,
+            startCameraX: cameraRef.current.x,
+            startCameraY: cameraRef.current.y,
+            dragging: false,
+          }
+        : null;
+      setIsDragging(false);
+      return;
+    }
+
+    if (!endedDragPointer) return;
+    dragRef.current = null;
+    setIsDragging(false);
   };
 
   const handleLostPointerCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    if (drag.dragging) suppressClickUntilRef.current = Date.now() + 300;
-    dragRef.current = null;
-    setIsDragging(false);
+    if (!activePointersRef.current.has(event.pointerId)) return;
+    finishPointer(event);
   };
 
   const handleViewportClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -621,7 +1007,10 @@ export function MapStage({
         zoomAroundPoint(cameraRef.current.zoom - BUTTON_ZOOM_STEP, 0, 0);
         break;
       case "0":
-        commitCamera(DEFAULT_CAMERA);
+        resetStage();
+        break;
+      case "Home":
+        fitStage();
         break;
       default:
         handled = false;
@@ -634,7 +1023,7 @@ export function MapStage({
     if (event.key !== "Escape" || selectedRef.current === null) return;
     event.preventDefault();
     event.stopPropagation();
-    closeSelection(true);
+    closeSelection(true, resetViewOnPanelClose);
   };
 
   const cameraStyle: CSSProperties = {
@@ -653,7 +1042,11 @@ export function MapStage({
     className,
     active ? "has-selection" : "",
     isDragging ? "is-dragging" : "",
-    camera.zoom > MIN_ZOOM + CAMERA_EPSILON ? "is-zoomed" : "",
+    discoveryStorageKey ? "has-discovery" : "",
+    discoveryStorageKey && !discoveryReady ? "is-discovery-pending" : "",
+    revealingIds.size > 0 ? "is-discovery-revealing" : "",
+    camera.zoom > BASE_ZOOM + CAMERA_EPSILON ? "is-zoomed-in" : "",
+    camera.zoom < BASE_ZOOM - CAMERA_EPSILON ? "is-zoomed-out" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -665,12 +1058,13 @@ export function MapStage({
       data-zoom={camera.zoom.toFixed(2)}
       onKeyDownCapture={handleStageKeyDownCapture}
     >
+      <MapDiscoveryContext.Provider value={discoveryValue}>
       <MapActiveContext.Provider value={visualActiveId}>
         <div
           ref={viewportRef}
           className="mapStage__viewport"
           role="region"
-          aria-label="知识地图。拖动可平移，滚轮或加减按钮可缩放，使用 Tab 键浏览地点。"
+          aria-label="知识地图。拖动可平移，滚轮、双指或加减按钮可缩放，复位按钮显示完整地图，使用 Tab 键浏览地点。"
           tabIndex={0}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -734,6 +1128,7 @@ export function MapStage({
                 const isHovered = hovered === item.id;
                 const isFocused = focused === item.id;
                 const isVisuallyActive = visualActiveId === item.id;
+                const isRevealing = revealingIds.has(item.id);
                 const hotspotClassName = [
                   "hotspot",
                   item.echo ? "hotspot--echo" : "",
@@ -742,6 +1137,7 @@ export function MapStage({
                   isHovered ? "is-hovered" : "",
                   isFocused ? "is-focused" : "",
                   isVisuallyActive ? "is-active" : "",
+                  isRevealing ? "is-discovering" : "",
                 ]
                   .filter(Boolean)
                   .join(" ");
@@ -772,15 +1168,18 @@ export function MapStage({
                     aria-pressed={isSelected}
                     aria-expanded={isSelected}
                     aria-controls={panelId}
+                    disabled={!discoveryReady || isRevealing}
                     onPointerEnter={(event) => {
                       if (event.pointerType !== "touch") setHovered(item.id);
                     }}
                     onPointerLeave={() => {
                       setHovered((current) => (current === item.id ? null : current));
                     }}
-                    onFocus={() => {
+                    onFocus={(event) => {
                       setFocused(item.id);
-                      focusHotspot({ ...item, focusZoom: cameraRef.current.zoom });
+                      if (event.currentTarget.matches(":focus-visible")) {
+                        focusHotspot({ ...item, focusZoom: cameraRef.current.zoom });
+                      }
                     }}
                     onBlur={() => {
                       setFocused((current) => (current === item.id ? null : current));
@@ -810,6 +1209,11 @@ export function MapStage({
           </div>
         </div>
       </MapActiveContext.Provider>
+      </MapDiscoveryContext.Provider>
+
+      <p className="mapDiscoveryAnnouncement" aria-live="polite">
+        {revealingIds.size > 0 ? `${revealingIds.size} 处新的地图区域正在显影` : ""}
+      </p>
 
       <aside
         id={panelId}
@@ -825,15 +1229,29 @@ export function MapStage({
               type="button"
               className="infoPanel__close"
               aria-label={`关闭“${active.title}”信息面板`}
-              onClick={() => closeSelection(true)}
+              onClick={() => closeSelection(true, resetViewOnPanelClose)}
             >
               <span aria-hidden="true">×</span>
             </button>
-            <div className="infoPanel__eyebrow">{active.eyebrow ?? "已选中"}</div>
-            <h2 id={panelTitleId} className="infoPanel__title">
-              {active.title}
-            </h2>
-            {active.meta && <div className="infoPanel__meta">{active.meta}</div>}
+            <div className={`infoPanel__head${active.cover ? " has-cover" : ""}`}>
+              {active.cover && (
+                <Image
+                  className="infoPanel__cover"
+                  src={active.cover}
+                  alt={active.coverAlt ?? ""}
+                  width={82}
+                  height={109}
+                  draggable={false}
+                />
+              )}
+              <div className="infoPanel__headText">
+                <div className="infoPanel__eyebrow">{active.eyebrow ?? "已选中"}</div>
+                <h2 id={panelTitleId} className="infoPanel__title">
+                  {active.title}
+                </h2>
+                {active.meta && <div className="infoPanel__meta">{active.meta}</div>}
+              </div>
+            </div>
             {active.desc && <div className="infoPanel__desc">{active.desc}</div>}
             <div className="infoPanel__actions">
               <Link
@@ -857,25 +1275,23 @@ export function MapStage({
                   <span aria-hidden="true">→</span>
                 </Link>
               )}
+              {active.sourceHref && (
+                <a
+                  className="infoPanel__source"
+                  href={active.sourceHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span>{active.sourceLabel ?? "查看原视频"}</span>
+                  <span aria-hidden="true">↗</span>
+                </a>
+              )}
             </div>
           </div>
         )}
       </aside>
 
       <div className="mapStage__controls mapControls" role="group" aria-label="地图缩放控制">
-        <button
-          type="button"
-          className="mapControls__button mapControls__button--zoom-in"
-          aria-label="放大地图"
-          title="放大地图"
-          disabled={camera.zoom >= MAX_ZOOM - CAMERA_EPSILON}
-          onClick={() => zoomAroundPoint(cameraRef.current.zoom + BUTTON_ZOOM_STEP, 0, 0)}
-        >
-          <span aria-hidden="true">＋</span>
-        </button>
-        <output className="mapControls__value" aria-label="当前地图缩放比例">
-          {zoomPercent}%
-        </output>
         <button
           type="button"
           className="mapControls__button mapControls__button--zoom-out"
@@ -885,6 +1301,19 @@ export function MapStage({
           onClick={() => zoomAroundPoint(cameraRef.current.zoom - BUTTON_ZOOM_STEP, 0, 0)}
         >
           <span aria-hidden="true">−</span>
+        </button>
+        <output className="mapControls__value" aria-label="当前地图缩放比例">
+          {zoomPercent}%
+        </output>
+        <button
+          type="button"
+          className="mapControls__button mapControls__button--zoom-in"
+          aria-label="放大地图"
+          title="放大地图"
+          disabled={camera.zoom >= MAX_ZOOM - CAMERA_EPSILON}
+          onClick={() => zoomAroundPoint(cameraRef.current.zoom + BUTTON_ZOOM_STEP, 0, 0)}
+        >
+          <span aria-hidden="true">＋</span>
         </button>
         <button
           type="button"

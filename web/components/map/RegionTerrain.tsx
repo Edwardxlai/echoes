@@ -1,10 +1,39 @@
 "use client";
 
+import Image from "next/image";
 import { useContext } from "react";
 import type { MapItem } from "@/lib/map-config";
 import { LandmarkGlyph, type GlyphKind } from "./LandmarkGlyph";
 import { CloudBank, Mountain, River, Road, Tree, TreeCluster, WaterRipple } from "./TerrainDetails";
-import { MapActiveContext } from "./MapStage";
+import { MapActiveContext, MapDiscoveryContext } from "./MapStage";
+
+interface RegionLandmark {
+  item: MapItem;
+  glyphKind: GlyphKind;
+}
+
+const HISTORY_ENVIRONMENT =
+  "/map-runtime/regions/history/terrain/region_history_environment_default_lod1_v01.webp";
+
+const HISTORY_LANDMARKS = [
+  "/map-runtime/regions/history/landmarks/region_history_landmark_archive-citadel_lod1_v01.webp",
+  "/map-runtime/regions/history/landmarks/region_history_landmark_excavation-terrace_lod1_v01.webp",
+  "/map-runtime/regions/history/landmarks/region_history_landmark_chronicle-observatory_lod1_v01.webp",
+  "/map-runtime/regions/history/landmarks/region_history_landmark_ancient-road-gate_lod1_v01.webp",
+] as const;
+
+// Matches the deterministic server-side collection slots. Empty slots stay
+// under fog and become available without changing the authored environment.
+const HISTORY_DISCOVERY_SLOTS = [
+  { x: 34, y: 48 },
+  { x: 66, y: 56 },
+  { x: 50, y: 30 },
+  { x: 28, y: 68 },
+  { x: 72, y: 34 },
+  { x: 46, y: 72 },
+  { x: 60, y: 44 },
+  { x: 38, y: 26 },
+] as const;
 
 const TINT_CLASS: Record<string, string> = {
   eco: "terrain-eco",
@@ -121,14 +150,95 @@ function CategoryLandscape({ categoryId }: { categoryId: string }) {
   return <EcoLandscape />;
 }
 
+function HistoryRegionTerrain({ landmarks }: { landmarks: RegionLandmark[] }) {
+  const activeId = useContext(MapActiveContext);
+  const discovery = useContext(MapDiscoveryContext);
+
+  return (
+    <div className="historyRegionTerrain">
+      <Image
+        className="historyRegionTerrain__base"
+        src={HISTORY_ENVIRONMENT}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        priority
+        draggable={false}
+      />
+      <div className="historyRegionTerrain__ageWash" aria-hidden="true" />
+
+      {landmarks.map(({ item }, index) => {
+        const isRevealing = discovery.revealingIds.has(item.id);
+        const isDiscovered = !discovery.enabled || discovery.discoveredIds.has(item.id);
+        const isHidden = discovery.enabled && (!discovery.ready || (!isDiscovered && !isRevealing));
+
+        return (
+          <div
+            key={item.id}
+            className={[
+              "historyLandmark",
+              activeId === item.id ? "is-active" : "",
+              isRevealing ? "is-revealing" : "",
+              isHidden ? "is-hidden" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            data-asset-index={index % HISTORY_LANDMARKS.length}
+            style={{ left: `${item.x}%`, top: `${item.y}%` }}
+          >
+            <Image
+              src={HISTORY_LANDMARKS[index % HISTORY_LANDMARKS.length]}
+              alt=""
+              fill
+              sizes="(max-width: 560px) 130px, 260px"
+              draggable={false}
+            />
+          </div>
+        );
+      })}
+
+      {HISTORY_DISCOVERY_SLOTS.map((slot, index) => {
+        const landmark = landmarks[index];
+        const isRevealing = landmark ? discovery.revealingIds.has(landmark.item.id) : false;
+        const isOpen = landmark
+          ? !discovery.enabled || discovery.discoveredIds.has(landmark.item.id)
+          : false;
+
+        return (
+          <div
+            key={`history-slot-${index}`}
+            className={[
+              "historyFog",
+              `historyFog--${index % 4}`,
+              isOpen ? "is-open" : "",
+              isRevealing ? "is-revealing" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+          >
+            <span className="historyFog__silhouette" />
+            <span className="historyFog__mist" />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function RegionTerrain({
   categoryId,
   landmarks,
 }: {
   categoryId: string;
-  landmarks: { item: MapItem; glyphKind: GlyphKind }[];
+  landmarks: RegionLandmark[];
 }) {
   const activeId = useContext(MapActiveContext);
+
+  if (categoryId === "his") {
+    return <HistoryRegionTerrain landmarks={landmarks} />;
+  }
+
   const accent = ACCENT_VAR[categoryId] ?? "var(--map-ink-soft)";
   const landPath = LAND_PATHS[categoryId] ?? LAND_PATHS.eco;
   const tintClass = TINT_CLASS[categoryId] ?? "terrain-land";

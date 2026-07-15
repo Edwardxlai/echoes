@@ -3,62 +3,63 @@
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 
-/* 统一输入口的类型识别（PRD §6.4.1）：单条视频 / 现成合集 / 多条独立链接。
-   真实产品里短链要服务端展开后才能判断是不是合集（eval/server.mjs 已实现）；
-   这里是前端演示版，只按 URL 特征分流，v.douyin 短链一律按单视频处理。 */
-const URL_RE = /https?:\/\/[^\s，。、"'<>【】]+/g;
-const COLLECTION_RE = /\/mix\/detail\/\d+|\/collection\/\d+|[?&]object_id=\d+/;
+/* 统一输入口（PRD §6.4.1）：单条视频 / 现成合集 / 多条独立链接。
+   识别在服务端做（短链展开后才知道是不是合集）：POST /api/parse 建资产并
+   后台跑管线，这里只负责提交和跳到对应的解析等待页。 */
 
-type LinkKind = "single" | "collection" | "multi";
-type InputState = "idle" | "empty" | LinkKind;
+type InputState = "idle" | "submitting" | "error";
 
-const KIND_LABEL: Record<LinkKind, string> = {
-  single: "单条视频，进入解析页",
-  collection: "现成合集，进入合集解析页",
-  multi: "多条独立视频，进入合集解析页",
-};
-
-/* 演示数据落点：单视频 → v1 解析页；合集/多视频 → c1 的合集解析结果页 */
-const KIND_ROUTE: Record<LinkKind, string> = {
-  single: "/video/v1",
-  collection: "/collection/c1/synthesis",
-  multi: "/collection/c1/synthesis",
-};
-
-function classify(text: string): LinkKind | null {
-  const urls = text.match(URL_RE) ?? [];
-  if (!urls.length) return null;
-  if (urls.length > 1) return "multi";
-  return COLLECTION_RE.test(urls[0]!) ? "collection" : "single";
-}
-
-export function HeroInput() {
+export function HeroInput({ compact = false }: { compact?: boolean }) {
   const inputId = useId();
   const router = useRouter();
   const [value, setValue] = useState("");
   const [state, setState] = useState<InputState>("idle");
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    if (state === "submitting") return;
+    if (!/https?:\/\//.test(value)) {
+      setState("error");
+      setError("先粘贴一条可识别的链接");
+      return;
+    }
+    setState("submitting");
+    try {
+      const res = await fetch("/api/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `接入失败（${res.status}）`);
+      router.push(
+        data.kind === "single"
+          ? `/parsing/${data.assetId}`
+          : `/parsing/group/${data.groupId}`
+      );
+    } catch (e) {
+      setState("error");
+      setError((e as Error).message || "接入失败，稍后再试");
+    }
+  };
 
   return (
-    <div className="mapInputBlock">
+    <div className={`mapInputBlock${compact ? " mapInputBlock--compact" : ""}`}>
       <form
-        className={`mapInputRow${state === "empty" ? " has-error" : ""}`}
+        className={`mapInputRow${state === "error" ? " has-error" : ""}`}
         onSubmit={(event) => {
           event.preventDefault();
-          const kind = classify(value);
-          if (!kind) {
-            setState("empty");
-            return;
-          }
-          setState(kind);
-          router.push(KIND_ROUTE[kind]);
+          submit();
         }}
       >
         <label className="srOnly" htmlFor={inputId}>
           视频或合集链接
         </label>
-        <span className="mapInputRow__icon" aria-hidden="true">
-          ↗
-        </span>
+        {!compact && (
+          <span className="mapInputRow__icon" aria-hidden="true">
+            ↗
+          </span>
+        )}
         <input
           id={inputId}
           type="text"
@@ -66,25 +67,26 @@ export function HeroInput() {
           value={value}
           onChange={(event) => {
             setValue(event.target.value);
-            if (state !== "idle") setState("idle");
+            if (state !== "idle") { setState("idle"); setError(""); }
           }}
           placeholder="粘贴视频、合集，或一次粘贴多条链接"
           aria-describedby={`${inputId}-note`}
-          aria-invalid={state === "empty"}
+          aria-invalid={state === "error"}
+          disabled={state === "submitting"}
         />
-        <button type="submit">
-          接入脉络
+        <button type="submit" disabled={state === "submitting"}>
+          {state === "submitting" ? "接入中…" : "接入脉络"}
           <span aria-hidden="true">→</span>
         </button>
       </form>
       <div className="mapInputMeta" id={`${inputId}-note`} aria-live="polite">
-        {state === "empty" && <span className="mapInputMeta__error">先粘贴一条可识别的链接</span>}
-        {state !== "empty" && state !== "idle" && (
-          <span className="mapInputMeta__success">识别为{KIND_LABEL[state]}（演示数据）…</span>
+        {state === "error" && <span className="mapInputMeta__error">{error}</span>}
+        {state === "submitting" && (
+          <span className="mapInputMeta__success">正在识别链接…合集需要十几秒枚举</span>
         )}
-        {state === "idle" && (
+        {state === "idle" && !compact && (
           <>
-            <span>支持单条视频 / 现成合集 / 自定义视频组</span>
+            <span>支持抖音单条视频 / 现成合集 / 自定义视频组</span>
             <span className="mapInputMeta__sample">试用示例 ↗</span>
           </>
         )}

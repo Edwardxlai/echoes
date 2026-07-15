@@ -1,5 +1,5 @@
-import Link from "next/link";
 import type { SynthesisPoint } from "@/lib/data";
+import { EchoBlock } from "./EchoBlock";
 
 /* 跨视频知识点 + 关系 + 溯源（PRD §6.4.2）：关系优先，不是系列脉络。
    p.echo 是这个知识点与用户历史观看的连接（§6.4.4，机制同 §6.2，
@@ -31,23 +31,7 @@ export function SynthesisPoints({ points }: { points: SynthesisPoint[] }) {
                 </span>
               ))}
             </div>
-            {p.echo && (
-              <div className="echoIn">
-                <div className="er">
-                  ✦ 跟你看过的《{p.echo.targetTitle}》{p.echo.relation}
-                </div>
-                <div className="ef">{p.echo.sentence}</div>
-                {p.echo.targetVideoId ? (
-                  <Link className="ejump" href={`/video/${p.echo.targetVideoId}`}>
-                    跳过去看《{p.echo.targetTitle}》 →
-                  </Link>
-                ) : (
-                  <div className="esrc">
-                    来自你看过的《{p.echo.targetTitle}》· {p.echo.creator} · {p.echo.timestampText}
-                  </div>
-                )}
-              </div>
-            )}
+            {p.echo && <EchoBlock echo={p.echo} />}
           </div>
         </div>
       ))}
