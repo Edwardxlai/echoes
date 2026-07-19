@@ -1,0 +1,15 @@
+services:
+  parse-video:
+    image: wujunwei928/parse-video
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/edwardxlai/echoes-web:latest
+    restart: unless-stopped
+    depends_on:
+      - parse-video
+    ports:
+      - "3080:3000"
+    volumes:
+      - ./data:/app/web/data
+      - ./eval.env:/app/eval/.env:ro
