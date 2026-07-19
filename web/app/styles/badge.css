@@ -1,5 +1,5 @@
-/* ---------- 后台解析角标：常驻右下角，区域/群岛地图页叠在
-   已有的「合集解析」入口正上方，不占新角落 ---------- */
+/* ---------- 后台解析角标：常驻右下角，页面真的渲染了「合集解析」
+   入口时才叠在其正上方，不占新角落 ---------- */
 .pbadge{
   position:fixed;
   right:20px;
@@ -10,7 +10,11 @@
   align-items:flex-end;
   font-family:var(--sans);
 }
-.pbadge--stacked{bottom:78px}
+/* 与合集解析入口右缘对齐、上方留 10px 呼吸位，不再错位 */
+body:has(.archipelagoSynthesis) .pbadge{
+  right:max(28px,calc(env(safe-area-inset-right) + 22px));
+  bottom:84px;
+}
 
 .pbadge__pill{
   display:flex;
@@ -159,7 +163,7 @@
 
 @media (max-width:560px){
   .pbadge{right:14px}
-  .pbadge--stacked{bottom:72px}
+  body:has(.archipelagoSynthesis) .pbadge{right:max(12px,env(safe-area-inset-right));bottom:66px}
   .pbadge__dropdown{width:min(280px,calc(100vw - 28px))}
 }
 

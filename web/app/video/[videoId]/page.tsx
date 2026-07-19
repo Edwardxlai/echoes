@@ -70,7 +70,7 @@ export default async function VideoPage({
           className="backlink"
           href={collection ? `/collection/${collection.id}` : "/"}
         >
-          ← &nbsp;{collection?.name ?? "世界地图"}
+          ← &nbsp;{collection ? `${collection.name} · 群岛` : "世界地图"}
         </Link>
         {(video.sourceUrl || moveTargets) && (
           <span className="navR">

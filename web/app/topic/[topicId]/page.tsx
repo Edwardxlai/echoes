@@ -34,9 +34,12 @@ export default async function TopicPage({
     <div className="doc">
       <BrandHomeLink className="readerBrand" />
 
+      {/* 返回键只写目的地：视频题回《标题》解析页，合集题回「名称 · 合集解析」 */}
       <Link className="backlink" href={topic.backHref}>
         {topic.kind === "extend"
-          ? `← 《${topic.ownerTitle}》· 延伸`
+          ? topic.backHref.endsWith("/synthesis")
+            ? `← ${topic.ownerTitle} · 合集解析`
+            : `← 《${topic.ownerTitle}》`
           : `← 《${topic.videoTitle}》`}
       </Link>
 
@@ -44,7 +47,7 @@ export default async function TopicPage({
         <div className="qrow">
           <span className="torigin" aria-hidden />
           {topic.kind === "extend" ? (
-            <h1 className="display">{topic.question}</h1>
+            <h1 className="display display--question">{topic.question}</h1>
           ) : (
             <div className="echoIn techo">
               <div className="er">

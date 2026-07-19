@@ -280,6 +280,9 @@ button.kfrom:disabled{opacity:.55;cursor:default}
 .torigin{width:10px;height:10px;border-radius:50%;box-sizing:border-box;justify-self:center;
   margin-top:19px;background:var(--bg);border:1.5px solid var(--ink);position:relative;z-index:1}
 .qrow:has(.techo) .torigin{margin-top:5px}
+/* 延伸题头与解析页问题句同级（display--question）后首行变矮，环与起笔点随行心上移 */
+.qrow:has(.display--question) .torigin{margin-top:15px}
+.tflow.haslines .qrow:has(.display--question)::after{top:23px}
 .tflow.haslines .qrow::after{content:"";position:absolute;left:7.5px;top:27px;bottom:0;
   width:1px;background:var(--rule)}
 .tflow .tempty{margin-left:32px}
