@@ -16,7 +16,7 @@ import {
 import { WORLD_MANIFEST } from "@/lib/map-scene/manifests/world";
 import type { WorldRegionId } from "@/lib/map-scene/schema";
 import { useWorldMapStore, type WorldCameraState } from "./world-map-store";
-import type { WorldMapCanvasItem } from "./WorldMapCanvas";
+import type { WorldMapCanvasItem, WorldRegionFogState } from "./WorldMapCanvas";
 
 const WorldMapCanvas = dynamic(() => import("./WorldMapCanvas"), {
   ssr: false,
@@ -28,6 +28,8 @@ export interface WorldMapItem extends WorldMapCanvasItem {
   route: string;
   routeLabel: string;
   accessibleLabel: string;
+  /** Special world entries, such as the unknown sea, skip region focus and open their archipelago. */
+  direct?: boolean;
 }
 
 interface WorldMapStageProps {
@@ -56,8 +58,11 @@ interface PinchGesture {
   midpointY: number;
 }
 
-const STORAGE_KEY = "echoes:world-map:r3f:v4";
+const FOG_STORAGE_KEY = "echoes:world-map:fog:v1";
+const FOG_REVEAL_DURATION = 1650;
 const DRAG_THRESHOLD = 6;
+
+type WorldFogStates = Partial<Record<WorldRegionId, WorldRegionFogState>>;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -94,12 +99,19 @@ export function WorldMapStage({ items }: WorldMapStageProps) {
   const dragRef = useRef<DragGesture | null>(null);
   const pinchRef = useRef<PinchGesture | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [regionFogStates, setRegionFogStates] = useState<WorldFogStates>(() =>
+    Object.fromEntries(
+      WORLD_MANIFEST.expansionIslands.map((island) => [
+        island.regionId,
+        island.state === "hidden" ? "hidden" : "locked",
+      ]),
+    ),
+  );
 
   const camera = useWorldMapStore((state) => state.camera);
   const selectedId = useWorldMapStore((state) => state.selectedId);
   const setCamera = useWorldMapStore((state) => state.setCamera);
   const select = useWorldMapStore((state) => state.select);
-  const restore = useWorldMapStore((state) => state.restore);
   const reset = useWorldMapStore((state) => state.reset);
   const triggerRipple = useWorldMapStore((state) => state.triggerRipple);
   const suppressClicks = useWorldMapStore((state) => state.suppressClicks);
@@ -107,27 +119,75 @@ export function WorldMapStage({ items }: WorldMapStageProps) {
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const activeItem = selectedId ? itemById.get(selectedId) ?? null : null;
   const zoomPercent = Math.round(camera.zoomRatio * 100);
+  const expansionAvailability = useMemo(
+    () =>
+      WORLD_MANIFEST.expansionIslands
+        .map((island) => `${island.regionId}:${itemById.has(island.regionId) ? 1 : 0}`)
+        .join("|"),
+    [itemById],
+  );
 
   useEffect(() => {
+    let storedUnlocked = new Set<WorldRegionId>();
     try {
-      const raw = window.sessionStorage.getItem(STORAGE_KEY);
+      const raw = window.localStorage.getItem(FOG_STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as { camera?: WorldCameraState; selectedId?: WorldRegionId };
-        const validSelected = parsed.selectedId && itemById.has(parsed.selectedId) ? parsed.selectedId : null;
-        const rect = stageRef.current?.getBoundingClientRect();
-        if (parsed.camera && rect) restore(constrainCamera(parsed.camera, rect), validSelected);
+        const parsed = JSON.parse(raw) as { version?: number; unlockedIds?: WorldRegionId[] };
+        if (parsed.version === 1 && Array.isArray(parsed.unlockedIds)) {
+          storedUnlocked = new Set(parsed.unlockedIds);
+        }
       }
     } catch {
-      window.sessionStorage.removeItem(STORAGE_KEY);
+      storedUnlocked = new Set<WorldRegionId>();
     }
-    const unsubscribe = useWorldMapStore.subscribe((state) => {
-      window.sessionStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ camera: state.camera, selectedId: state.selectedId }),
-      );
+
+    const revealingIds: WorldRegionId[] = [];
+    const nextStates: WorldFogStates = {};
+    WORLD_MANIFEST.expansionIslands.forEach((island) => {
+      if (island.state === "hidden") {
+        nextStates[island.regionId] = "hidden";
+      } else if (!itemById.has(island.regionId)) {
+        nextStates[island.regionId] = "locked";
+      } else if (island.state === "available" || storedUnlocked.has(island.regionId)) {
+        nextStates[island.regionId] = "unlocked";
+      } else {
+        nextStates[island.regionId] = "revealing";
+        revealingIds.push(island.regionId);
+      }
     });
-    return unsubscribe;
-  }, [itemById, restore]);
+    setRegionFogStates(nextStates);
+
+    if (revealingIds.length === 0) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => {
+      setRegionFogStates((current) => {
+        const next = { ...current };
+        revealingIds.forEach((id) => {
+          next[id] = "unlocked";
+          storedUnlocked.add(id);
+        });
+        return next;
+      });
+      try {
+        window.localStorage.setItem(
+          FOG_STORAGE_KEY,
+          JSON.stringify({ version: 1, unlockedIds: [...storedUnlocked] }),
+        );
+      } catch {
+        // The reveal remains complete for this visit when persistence is unavailable.
+      }
+    }, reducedMotion ? 80 : FOG_REVEAL_DURATION);
+
+    return () => window.clearTimeout(timer);
+  }, [expansionAvailability, itemById]);
+
+  // Every mount is a fresh entry into the world map: always open on the home
+  // camera rather than whatever pan/zoom/selection was left over from an
+  // earlier visit in the same session (the zustand store is a module-level
+  // singleton, so its state otherwise survives navigating away and back).
+  useEffect(() => {
+    reset();
+  }, [reset]);
 
   const commitCamera = useCallback(
     (next: WorldCameraState) => {
@@ -142,8 +202,21 @@ export function WorldMapStage({ items }: WorldMapStageProps) {
       const state = useWorldMapStore.getState();
       if (Date.now() < state.suppressClickUntil) return;
       const item = itemById.get(id);
-      const region = WORLD_MANIFEST.regions.find((candidate) => candidate.id === id);
+      const region =
+        WORLD_MANIFEST.regions.find((candidate) => candidate.id === id) ??
+        WORLD_MANIFEST.expansionIslands.find((candidate) => candidate.regionId === id);
       if (!item || !region) return;
+      if (
+        WORLD_MANIFEST.expansionIslands.some((candidate) => candidate.regionId === id) &&
+        regionFogStates[id] !== "unlocked"
+      ) {
+        return;
+      }
+
+      if (item.direct) {
+        router.push(item.route);
+        return;
+      }
 
       if (state.selectedId === id) {
         router.push(item.route);
@@ -157,7 +230,7 @@ export function WorldMapStage({ items }: WorldMapStageProps) {
         zoomRatio: region.focus.zoomRatio,
       });
     },
-    [commitCamera, itemById, router, select],
+    [commitCamera, itemById, regionFogStates, router, select],
   );
 
   const resetMap = useCallback(() => {
@@ -327,6 +400,7 @@ export function WorldMapStage({ items }: WorldMapStageProps) {
       <div className="worldMapStage__canvas" aria-hidden="true">
         <WorldMapCanvas
           items={items.map(({ id, title, meta, echo }) => ({ id, title, meta, echo }))}
+          regionFogStates={regionFogStates}
           onRegionActivate={activateRegion}
         />
       </div>

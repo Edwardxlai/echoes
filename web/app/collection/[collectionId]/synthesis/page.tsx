@@ -34,7 +34,7 @@ export default async function CollectionSynthesisPage({
         categoryId: real!.categoryId,
         echoCount: real!.echoCount,
         synthesis: real!.synthesis,
-        cognitiveExpansion: undefined,
+        cognitiveExpansion: real!.cognitiveExpansion ?? undefined,
       };
 
   const videos = seed
@@ -43,12 +43,14 @@ export default async function CollectionSynthesisPage({
         title: v.title,
         duration: v.duration,
         echoCount: v.nodes.filter((n) => n.echo).length,
+        sourceUrl: v.sourceUrl,
       }))
     : real!.islands.map((v) => ({
         id: v.id,
         title: v.title,
         duration: v.duration,
         echoCount: v.echoCount,
+        sourceUrl: v.sourceUrl || undefined,
       }));
 
   return (
@@ -72,12 +74,25 @@ export default async function CollectionSynthesisPage({
 
       <nav className="toc" aria-label="单集入口">
         {videos.map((v, i) => (
-          <Link key={v.id} className="tocRow" href={`/video/${v.id}`}>
-            <span className="no">{String(i + 1).padStart(2, "0")}</span>
-            <span className="t">{v.title}</span>
-            <span className="ec">{v.echoCount > 0 ? `✦ ${v.echoCount}` : ""}</span>
-            <span className="dur">{v.duration}</span>
-          </Link>
+          <div key={v.id} className="tocLine">
+            <Link className="tocRow" href={`/video/${v.id}`}>
+              <span className="no">{String(i + 1).padStart(2, "0")}</span>
+              <span className="t">{v.title}</span>
+              <span className="ec">{v.echoCount > 0 ? `✦ ${v.echoCount}` : ""}</span>
+              <span className="dur">{v.duration}</span>
+            </Link>
+            {v.sourceUrl && (
+              <a
+                className="tocSrc"
+                href={v.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${v.title} 原视频`}
+              >
+                ↗
+              </a>
+            )}
+          </div>
         ))}
       </nav>
 
@@ -86,7 +101,7 @@ export default async function CollectionSynthesisPage({
         <span className="tt">知识点</span>
       </div>
       {collection.synthesis ? (
-        <SynthesisPoints points={collection.synthesis.points} />
+        <SynthesisPoints points={collection.synthesis.points} videoIds={videos.map((v) => v.id)} />
       ) : (
         <p style={{ padding: "24px 0", color: "var(--ink-3)", fontSize: 14 }}>
           这组内容之间的跨视频关联还不够多，暂时生成不出知识点合成——单集解析仍然可用，见上方集数索引。
@@ -98,12 +113,11 @@ export default async function CollectionSynthesisPage({
           <div className="sh">
             <span className="no">贰</span>
             <span className="tt">认知·拓展</span>
-            <span className="sub">你已知的，未知的，值得追问的</span>
+            <span className="sub">该补上的，值得追问的</span>
           </div>
           <CognitiveExpansionBlock
             data={collection.cognitiveExpansion}
-            mapHref={`/category/${collection.categoryId}`}
-            scope="collection"
+            topicBase={`extend.${collectionId}`}
           />
         </>
       )}

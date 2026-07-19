@@ -85,7 +85,7 @@ await ensureSidecar();
 console.log("· 启动测评后端（:6060）…");
 spawn(process.execPath, ["eval/server.mjs"], { cwd: ROOT, stdio: "inherit" });
 
-console.log("· 启动 web 前端（:3100）…\n");
+console.log("· 启动 web 前端（:3000）…\n");
 spawn("npm", ["run", "dev"], {
   cwd: path.join(ROOT, "web"),
   stdio: "inherit",

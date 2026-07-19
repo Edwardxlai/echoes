@@ -22,7 +22,6 @@ interface WorldMapState {
   hover: (id: WorldRegionId | null) => void;
   triggerRipple: (position: [number, number]) => void;
   suppressClicks: (milliseconds?: number) => void;
-  restore: (camera: WorldCameraState, selectedId: WorldRegionId | null) => void;
   reset: () => void;
 }
 
@@ -45,6 +44,5 @@ export const useWorldMapStore = create<WorldMapState>((set) => ({
     set((state) => ({ ripple: { sequence: state.ripple.sequence + 1, position } })),
   suppressClicks: (milliseconds = 260) =>
     set({ suppressClickUntil: Date.now() + milliseconds }),
-  restore: (camera, selectedId) => set({ camera, selectedId, hoveredId: null }),
   reset: () => set({ camera: HOME_CAMERA, selectedId: null, hoveredId: null }),
 }));

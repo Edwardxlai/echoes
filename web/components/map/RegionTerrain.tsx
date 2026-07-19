@@ -12,27 +12,141 @@ interface RegionLandmark {
   glyphKind: GlyphKind;
 }
 
-const HISTORY_ENVIRONMENT =
-  "/map-runtime/regions/history/terrain/region_history_environment_default_lod1_v01.webp";
+const ECONOMY_TERRAIN =
+  "/map-runtime/regions/economy/terrain/region_economy_terrain_default_lod1_v03.webp";
 
-const HISTORY_LANDMARKS = [
-  "/map-runtime/regions/history/landmarks/region_history_landmark_archive-citadel_lod1_v01.webp",
-  "/map-runtime/regions/history/landmarks/region_history_landmark_excavation-terrace_lod1_v01.webp",
-  "/map-runtime/regions/history/landmarks/region_history_landmark_chronicle-observatory_lod1_v01.webp",
-  "/map-runtime/regions/history/landmarks/region_history_landmark_ancient-road-gate_lod1_v01.webp",
+const ECONOMY_COAST = {
+  shallow: "/map-runtime/regions/economy/coast/region_economy_coast-shallow_default_lod1_v01.webp",
+  wetContact: "/map-runtime/regions/economy/coast/region_economy_coast-wet_default_lod1_v01.webp",
+  foam: "/map-runtime/regions/economy/coast/region_economy_coast-foam_default_lod1_v01.webp",
+  contactShadow:
+    "/map-runtime/regions/economy/terrain/region_economy_contact-shadow_default_lod1_v01.webp",
+} as const;
+
+const ECONOMY_LANDMARKS = [
+  {
+    asset: "/map-runtime/regions/economy/landmarks/region_economy_landmark_misc-eco_lod1_v03.webp",
+    width: 14.5,
+    aspectRatio: 1067 / 740,
+  },
+  {
+    asset: "/map-runtime/regions/economy/landmarks/region_economy_landmark_da2e1ad3_lod1_v03.webp",
+    width: 15.5,
+    aspectRatio: 981 / 896,
+  },
+  {
+    asset: "/map-runtime/regions/economy/landmarks/region_economy_landmark_b9702449_lod1_v03.webp",
+    width: 13.7,
+    aspectRatio: 839 / 740,
+  },
 ] as const;
 
-// Matches the deterministic server-side collection slots. Empty slots stay
-// under fog and become available without changing the authored environment.
-const HISTORY_DISCOVERY_SLOTS = [
-  { x: 34, y: 48 },
-  { x: 66, y: 56 },
-  { x: 50, y: 30 },
-  { x: 28, y: 68 },
-  { x: 72, y: 34 },
-  { x: 46, y: 72 },
-  { x: 60, y: 44 },
-  { x: 38, y: 26 },
+const ECONOMY_LANDMARK_BY_ENTITY: Record<string, (typeof ECONOMY_LANDMARKS)[number]> = {
+  "misc-eco": ECONOMY_LANDMARKS[0],
+  da2e1ad3: ECONOMY_LANDMARKS[1],
+  b9702449: ECONOMY_LANDMARKS[2],
+  c1: ECONOMY_LANDMARKS[0],
+  c2: ECONOMY_LANDMARKS[1],
+};
+
+const ECONOMY_FUTURE_SLOTS = [
+  {
+    x: 43,
+    y: 69,
+    width: 9.8,
+    aspectRatio: 710 / 751,
+    asset:
+      "/map-runtime/regions/economy/landmarks/region_economy_landmark_future-industrial-guild_lod1_v01.webp",
+  },
+  {
+    x: 37.4,
+    y: 79,
+    width: 14.2,
+    aspectRatio: 1171 / 832,
+    asset:
+      "/map-runtime/regions/economy/landmarks/region_economy_landmark_future-logistics-customs_lod1_v01.webp",
+  },
+  {
+    x: 72.2,
+    y: 52.8,
+    width: 10.8,
+    aspectRatio: 821 / 790,
+    asset:
+      "/map-runtime/regions/economy/landmarks/region_economy_landmark_future-enterprise-forum_lod1_v01.webp",
+  },
+] as const;
+
+const HISTORY_ENVIRONMENT =
+  "/map-runtime/regions/history/terrain/region_history_terrain_default_lod1_v05.webp";
+
+const HISTORY_COAST = {
+  shallow: "/map-runtime/regions/history/coast/region_history_coast-shallow_default_lod1_v01.webp",
+  wetContact: "/map-runtime/regions/history/coast/region_history_coast-wet_default_lod1_v01.webp",
+  foam: "/map-runtime/regions/history/coast/region_history_coast-foam_default_lod1_v01.webp",
+  contactShadow:
+    "/map-runtime/regions/history/terrain/region_history_contact-shadow_default_lod1_v01.webp",
+} as const;
+
+const HISTORY_LANDMARKS = [
+  "/map-runtime/regions/history/landmarks/region_history_landmark_archive-citadel_lod1_v02.webp",
+  "/map-runtime/regions/history/landmarks/region_history_landmark_excavation-terrace_lod1_v02.webp",
+  "/map-runtime/regions/history/landmarks/region_history_landmark_chronicle-observatory_lod1_v02.webp",
+  "/map-runtime/regions/history/landmarks/region_history_landmark_ancient-road-gate_lod1_v02.webp",
+] as const;
+
+const TECHNOLOGY_TERRAIN =
+  "/map-runtime/regions/technology/terrain/region_technology_terrain_default_lod1_v03.webp";
+
+const TECHNOLOGY_LANDMARKS = [
+  "/map-runtime/regions/technology/landmarks/region_technology_landmark_misc-tech_lod1_v02.webp",
+] as const;
+
+const TECHNOLOGY_LANDMARK_BY_ENTITY: Record<
+  string,
+  (typeof TECHNOLOGY_LANDMARKS)[number]
+> = {
+  "misc-tech": TECHNOLOGY_LANDMARKS[0],
+  c4: TECHNOLOGY_LANDMARKS[0],
+};
+
+const TECHNOLOGY_FUTURE_SLOTS = [
+  {
+    x: 59.3,
+    y: 70.7,
+    asset:
+      "/map-runtime/regions/technology/landmarks/region_technology_landmark_future-computation-loom_lod1_v01.webp",
+  },
+  {
+    x: 41.1,
+    y: 20.6,
+    asset:
+      "/map-runtime/regions/technology/landmarks/region_technology_landmark_future-science-forum_lod1_v01.webp",
+  },
+  {
+    x: 23.4,
+    y: 38.6,
+    asset:
+      "/map-runtime/regions/technology/landmarks/region_technology_landmark_future-engineering-testworks_lod1_v01.webp",
+  },
+  {
+    x: 85.6,
+    y: 38.9,
+    asset:
+      "/map-runtime/regions/technology/landmarks/region_technology_landmark_future-signal-observatory_lod1_v01.webp",
+  },
+] as const;
+
+// These masks follow river-bounded neighborhoods in the authored master.
+// Locked areas reuse the real terrain underneath, as the world fog does.
+const HISTORY_DISCOVERY_ZONES = [
+  { x: 340, y: 300, path: "M222 270C249 230 307 218 359 235C406 229 452 257 454 302C445 342 396 364 347 354C297 370 241 346 222 306C215 294 216 281 222 270Z" },
+  { x: 660, y: 350, path: "M566 328C593 292 642 282 684 299C726 288 779 310 791 351C799 389 758 426 710 427C672 451 612 432 588 397C562 384 550 352 566 328Z" },
+  { x: 500, y: 188, path: "M408 153C431 112 477 94 520 108C560 97 606 124 615 162C630 198 596 229 553 233C515 253 460 238 439 207C408 201 392 174 408 153Z" },
+  { x: 280, y: 425, path: "M173 409C196 372 246 354 287 369C329 358 373 385 382 423C399 462 361 501 315 502C278 525 222 510 201 477C171 468 156 434 173 409Z" },
+  { x: 720, y: 213, path: "M641 181C664 145 703 129 741 140C780 130 824 154 835 190C850 225 819 257 779 264C744 282 694 269 672 239C646 234 629 205 641 181Z" },
+  { x: 460, y: 450, path: "M368 429C390 394 432 379 471 391C508 383 554 406 565 441C579 477 546 510 504 515C468 534 417 520 395 491C368 484 354 452 368 429Z" },
+  { x: 600, y: 275, path: "M520 253C542 220 582 206 619 217C655 209 697 231 708 264C721 297 690 328 651 333C616 351 569 338 548 310C523 304 508 276 520 253Z" },
+  { x: 380, y: 163, path: "M301 139C322 106 361 92 398 103C434 95 475 117 486 150C499 183 469 213 430 218C396 236 349 223 328 195C303 189 289 162 301 139Z" },
 ] as const;
 
 const TINT_CLASS: Record<string, string> = {
@@ -150,14 +264,234 @@ function CategoryLandscape({ categoryId }: { categoryId: string }) {
   return <EcoLandscape />;
 }
 
+function EconomyRegionTerrain({ landmarks }: { landmarks: RegionLandmark[] }) {
+  const activeId = useContext(MapActiveContext);
+  const discovery = useContext(MapDiscoveryContext);
+
+  // 表外合集（自动聚类等）顶未来建筑：real-data 侧按同序分配了未来槽坐标，
+  // 这里同序取该槽的建筑图；被顶掉的未来建筑不再走装饰渲染
+  let overflowCount = 0;
+  const visuals = landmarks.map(
+    ({ item }, index) =>
+      ECONOMY_LANDMARK_BY_ENTITY[item.entityId] ??
+      ECONOMY_FUTURE_SLOTS[overflowCount++] ??
+      ECONOMY_LANDMARKS[index % ECONOMY_LANDMARKS.length]
+  );
+
+  return (
+    <div className="regionImageTerrain regionImageTerrain--eco">
+      <Image
+        className="regionCoast regionCoast--shallow"
+        src={ECONOMY_COAST.shallow}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        draggable={false}
+      />
+      <Image
+        className="regionCoast regionCoast--wet"
+        src={ECONOMY_COAST.wetContact}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        draggable={false}
+      />
+      <Image
+        className="regionCoast regionCoast--shadow"
+        src={ECONOMY_COAST.contactShadow}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        draggable={false}
+      />
+      <Image
+        className="regionImageTerrain__base regionImageTerrain__base--transparent"
+        src={ECONOMY_TERRAIN}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        preload
+        draggable={false}
+      />
+      <Image
+        className="regionCoast regionCoast--foam"
+        src={ECONOMY_COAST.foam}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        draggable={false}
+      />
+
+      {landmarks.map(({ item }, index) => {
+        const isRevealing = discovery.revealingIds.has(item.id);
+        const isDiscovered = !discovery.enabled || discovery.discoveredIds.has(item.id);
+        const isHidden = discovery.enabled && (!discovery.ready || (!isDiscovered && !isRevealing));
+        const visual = visuals[index];
+
+        return (
+          <div
+            key={item.id}
+            className={[
+              "regionImageLandmark",
+              activeId === item.id ? "is-active" : "",
+              isRevealing ? "is-revealing" : "",
+              isHidden ? "is-hidden" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            data-asset-index={index % ECONOMY_LANDMARKS.length}
+            style={{
+              left: `${item.x}%`,
+              top: `${item.y}%`,
+              width: `${visual.width}%`,
+              aspectRatio: visual.aspectRatio,
+            }}
+          >
+            <Image
+              src={visual.asset}
+              alt=""
+              fill
+              sizes="(max-width: 560px) 140px, 300px"
+              draggable={false}
+            />
+          </div>
+        );
+      })}
+
+      {ECONOMY_FUTURE_SLOTS.slice(overflowCount).map((slot) => (
+        <div
+          key={slot.asset}
+          className="economyFutureLandmark"
+          style={{
+            left: `${slot.x}%`,
+            top: `${slot.y}%`,
+            width: `${slot.width}%`,
+            aspectRatio: slot.aspectRatio,
+          }}
+          aria-hidden="true"
+        >
+          <Image
+            src={slot.asset}
+            alt=""
+            fill
+            sizes="(max-width: 560px) 120px, 240px"
+            draggable={false}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TechnologyRegionTerrain({ landmarks }: { landmarks: RegionLandmark[] }) {
+  const activeId = useContext(MapActiveContext);
+  const discovery = useContext(MapDiscoveryContext);
+  const occupiedFutureSlots = Math.max(
+    0,
+    Math.min(landmarks.length - 1, TECHNOLOGY_FUTURE_SLOTS.length)
+  );
+
+  return (
+    <div className="regionImageTerrain regionImageTerrain--tech">
+      <Image
+        className="regionImageTerrain__base regionImageTerrain__base--transparent"
+        src={TECHNOLOGY_TERRAIN}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        preload
+        draggable={false}
+      />
+
+      {landmarks.map(({ item }, index) => {
+        const isRevealing = discovery.revealingIds.has(item.id);
+        const isDiscovered = !discovery.enabled || discovery.discoveredIds.has(item.id);
+        const isHidden = discovery.enabled && (!discovery.ready || (!isDiscovered && !isRevealing));
+        // 表外合集落在 TECHNOLOGY_REGION_SLOTS[index]（=未来槽 index-1 的坐标），美术取同槽建筑
+        const asset =
+          TECHNOLOGY_LANDMARK_BY_ENTITY[item.entityId] ??
+          TECHNOLOGY_FUTURE_SLOTS[index - 1]?.asset ??
+          TECHNOLOGY_LANDMARKS[index % TECHNOLOGY_LANDMARKS.length];
+
+        return (
+          <div
+            key={item.id}
+            className={[
+              "regionImageLandmark",
+              activeId === item.id ? "is-active" : "",
+              isRevealing ? "is-revealing" : "",
+              isHidden ? "is-hidden" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            data-asset-index={index % TECHNOLOGY_LANDMARKS.length}
+            data-tech-slot={index}
+            style={{ left: `${item.x}%`, top: `${item.y}%` }}
+          >
+            <Image
+              src={asset}
+              alt=""
+              fill
+              sizes="(max-width: 560px) 140px, 300px"
+              draggable={false}
+            />
+          </div>
+        );
+      })}
+
+      {TECHNOLOGY_FUTURE_SLOTS.slice(occupiedFutureSlots).map((slot, index) => (
+        <div
+          key={slot.asset}
+          className="technologyFutureLandmark"
+          data-future-slot={index + occupiedFutureSlots + 2}
+          style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+          aria-hidden="true"
+        >
+          <Image
+            src={slot.asset}
+            alt=""
+            fill
+            sizes="(max-width: 560px) 120px, 250px"
+            draggable={false}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function HistoryRegionTerrain({ landmarks }: { landmarks: RegionLandmark[] }) {
   const activeId = useContext(MapActiveContext);
   const discovery = useContext(MapDiscoveryContext);
 
   return (
-    <div className="historyRegionTerrain">
+    <div className="regionImageTerrain regionImageTerrain--his historyRegionTerrain">
       <Image
-        className="historyRegionTerrain__base"
+        className="regionCoast regionCoast--shallow"
+        src={HISTORY_COAST.shallow}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        draggable={false}
+      />
+      <Image
+        className="regionCoast regionCoast--wet"
+        src={HISTORY_COAST.wetContact}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        draggable={false}
+      />
+      <Image
+        className="regionCoast regionCoast--shadow"
+        src={HISTORY_COAST.contactShadow}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        draggable={false}
+      />
+      <Image
+        className="regionImageTerrain__base regionImageTerrain__base--transparent historyRegionTerrain__base"
         src={HISTORY_ENVIRONMENT}
         alt=""
         fill
@@ -165,7 +499,14 @@ function HistoryRegionTerrain({ landmarks }: { landmarks: RegionLandmark[] }) {
         preload
         draggable={false}
       />
-      <div className="historyRegionTerrain__ageWash" aria-hidden="true" />
+      <Image
+        className="regionCoast regionCoast--foam"
+        src={HISTORY_COAST.foam}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        draggable={false}
+      />
 
       {landmarks.map(({ item }, index) => {
         const isRevealing = discovery.revealingIds.has(item.id);
@@ -197,7 +538,7 @@ function HistoryRegionTerrain({ landmarks }: { landmarks: RegionLandmark[] }) {
         );
       })}
 
-      {HISTORY_DISCOVERY_SLOTS.map((slot, index) => {
+      {HISTORY_DISCOVERY_ZONES.map((slot, index) => {
         const landmark = landmarks[index];
         const isRevealing = landmark ? discovery.revealingIds.has(landmark.item.id) : false;
         const isOpen = landmark
@@ -235,8 +576,16 @@ export function RegionTerrain({
 }) {
   const activeId = useContext(MapActiveContext);
 
+  if (categoryId === "eco") {
+    return <EconomyRegionTerrain landmarks={landmarks} />;
+  }
+
   if (categoryId === "his") {
     return <HistoryRegionTerrain landmarks={landmarks} />;
+  }
+
+  if (categoryId === "tech") {
+    return <TechnologyRegionTerrain landmarks={landmarks} />;
   }
 
   const accent = ACCENT_VAR[categoryId] ?? "var(--map-ink-soft)";

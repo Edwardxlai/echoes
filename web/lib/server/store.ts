@@ -9,7 +9,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { CognitiveExpansion, Echo, Synthesis } from "@/lib/data";
+import type { CognitiveExpansion, CollectionExtendItem, CollectionGapFill, Echo, Synthesis } from "@/lib/data";
 
 export type AssetStatus =
   | "uploaded"
@@ -54,7 +54,7 @@ export interface Analysis {
   summary: string;
   backbone: BackboneNode[];
   takeaways: string[];
-  /** L4 认知拓展（M3 起 known 由观看史检索填充）。生成失败时缺席，解析页不摆空壳。 */
+  /** L4 认知拓展（补缺 + 延伸）。生成失败时缺席，解析页不摆空壳。 */
   cognitiveExpansion?: CognitiveExpansion;
   /** L5 回响：按 backbone 下标挂到节点。宁缺毋滥，没有就是空数组。 */
   echoes?: StoredEcho[];
@@ -63,6 +63,8 @@ export interface Analysis {
 /** 落库的回响：nodeIndex 定位本条 backbone 的节点，其余字段即前端 Echo。 */
 export interface StoredEcho extends Echo {
   nodeIndex: number;
+  /** 反向条目（L5b 写回旧视频的那半边）。反向不再生反向，防止来回弹 */
+  reciprocal?: boolean;
 }
 
 export interface CollectionRow {
@@ -70,6 +72,15 @@ export interface CollectionRow {
   name: string;
   categoryId: string;
   createdAt: string;
+}
+
+export type MappedRegionCategoryId = "eco" | "his" | "tech";
+
+/** 只有这三个大类拥有世界地图下的独立区域与区域内合集。 */
+export function isMappedRegionCategory(
+  categoryId: string | null | undefined
+): categoryId is MappedRegionCategoryId {
+  return categoryId === "eco" || categoryId === "his" || categoryId === "tech";
 }
 
 const DATA_DIR = join(process.cwd(), "data");
@@ -121,6 +132,12 @@ function getDb(): DatabaseSync {
       categoryId TEXT NOT NULL,
       createdAt TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS topic_posts (
+      id TEXT PRIMARY KEY,
+      topicId TEXT NOT NULL,
+      body TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    );
   `);
   // 增量迁移（列已存在时静默跳过）：M2 认知拓展；M3 回响；封面；合集级跨视频合成
   for (const sql of [
@@ -128,6 +145,11 @@ function getDb(): DatabaseSync {
     `ALTER TABLE analyses ADD COLUMN echoes TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE source_assets ADD COLUMN cover TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE collections ADD COLUMN synthesis TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE collections ADD COLUMN collectionGap TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE collections ADD COLUMN collectionExtend TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE topic_posts ADD COLUMN parentId TEXT`,
+    `ALTER TABLE topic_posts ADD COLUMN quoteNodeId TEXT`,
+    `ALTER TABLE topic_posts ADD COLUMN quoteText TEXT`,
   ]) {
     try { db.exec(sql); } catch { /* 列已存在 */ }
   }
@@ -277,6 +299,49 @@ export function getSynthesis(collectionId: string): Synthesis | null {
   } catch { return null; }
 }
 
+/** 清空合集的 L6 产物（合成/补缺/延伸）。成员搬走后旧产物引用已离开的视频，宁缺毋滥。 */
+export function clearCollectionSynthesis(collectionId: string): void {
+  getDb()
+    .prepare(`UPDATE collections SET synthesis = '', collectionGap = '', collectionExtend = '' WHERE id = ?`)
+    .run(collectionId);
+}
+
+/** 合集级补缺（往旁看，L6 收尾生成）。门控为空/单集合集时缺席。 */
+export function saveCollectionGapFill(collectionId: string, gapFill: CollectionGapFill): void {
+  getDb()
+    .prepare(`UPDATE collections SET collectionGap = ? WHERE id = ?`)
+    .run(JSON.stringify(gapFill), collectionId);
+}
+
+export function getCollectionGapFill(collectionId: string): CollectionGapFill | null {
+  try {
+    const row = getDb()
+      .prepare(`SELECT collectionGap FROM collections WHERE id = ?`)
+      .get(collectionId) as { collectionGap?: string } | undefined;
+    if (!row?.collectionGap) return null;
+    const parsed = JSON.parse(row.collectionGap) as CollectionGapFill;
+    return parsed.gap && parsed.fill ? parsed : null;
+  } catch { return null; } // 旧 schema（列未迁移）或坏 JSON → 视为无补缺
+}
+
+/** 合集级延伸（往深想，L6 收尾生成）。门控为空/单集合集时缺席。 */
+export function saveCollectionExtend(collectionId: string, extend: CollectionExtendItem[]): void {
+  getDb()
+    .prepare(`UPDATE collections SET collectionExtend = ? WHERE id = ?`)
+    .run(JSON.stringify(extend), collectionId);
+}
+
+export function getCollectionExtend(collectionId: string): CollectionExtendItem[] {
+  try {
+    const row = getDb()
+      .prepare(`SELECT collectionExtend FROM collections WHERE id = ?`)
+      .get(collectionId) as { collectionExtend?: string } | undefined;
+    if (!row?.collectionExtend) return [];
+    const parsed = JSON.parse(row.collectionExtend) as CollectionExtendItem[];
+    return Array.isArray(parsed) ? parsed.filter((x) => x?.question && x?.hint) : [];
+  } catch { return []; } // 旧 schema（列未迁移）或坏 JSON → 视为无延伸
+}
+
 /** 有归属（分类完成）的合集，按大类过滤；只返回内含 ≥1 条已解析视频的。 */
 export function listCollections(categoryId?: string): CollectionRow[] {
   const where = categoryId ? `AND c.categoryId = ?` : "";
@@ -299,7 +364,20 @@ export function listAssetsByCollection(collectionId: string): SourceAsset[] {
   return rows as unknown as SourceAsset[];
 }
 
-/** 回响/known 召回基准：全部已解析资产的脉络（排除指定资产自己）。 */
+/** 经济、历史、科技之外的已解析内容，统一进入世界地图的“未知海域”。 */
+export function listUnknownSeaAssets(): SourceAsset[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT * FROM source_assets
+       WHERE status = 'analyzed'
+         AND (bigCategoryId IS NULL OR bigCategoryId NOT IN ('eco', 'his', 'tech'))
+       ORDER BY createdAt`
+    )
+    .all();
+  return rows as unknown as SourceAsset[];
+}
+
+/** 回响召回基准：全部已解析资产的脉络（排除指定资产自己）。 */
 export interface RecallSource {
   assetId: string;
   title: string;
@@ -321,6 +399,67 @@ export function listRecallSources(excludeAssetId: string): RecallSource[] {
     author: r.author,
     backbone: JSON.parse(r.backbone || "[]"),
   }));
+}
+
+/* ---------- 同题空间（讨论区 P0）：单用户本地，发帖即落库 ---------- */
+
+export interface TopicPostRow {
+  id: string;
+  topicId: string;
+  body: string;
+  createdAt: string;
+  /** 非空 = 对某条想法的回复；父 id 可为种子帖（seed-N，静态稳定）或真实帖 */
+  parentId: string | null;
+  /** quoteRef：发想法时从脉络里带的一句原文。nodeId 定位原句，text 是快照
+      （防真实解析重跑后原句漂移）；主帖和回复都能带。 */
+  quoteNodeId: string | null;
+  quoteText: string | null;
+}
+
+export function addTopicPost(
+  topicId: string,
+  body: string,
+  parentId?: string,
+  quote?: { nodeId: string; text: string }
+): void {
+  getDb()
+    .prepare(
+      `INSERT INTO topic_posts (id, topicId, body, createdAt, parentId, quoteNodeId, quoteText)
+       VALUES (?,?,?,?,?,?,?)`
+    )
+    .run(
+      randomUUID(),
+      topicId,
+      body,
+      now(),
+      parentId ?? null,
+      quote?.nodeId ?? null,
+      quote?.text ?? null
+    );
+}
+
+/** 删除自己的想法；是主帖则连带删它下面的回复（不留孤儿）。 */
+export function deleteTopicPost(id: string): void {
+  getDb()
+    .prepare(`DELETE FROM topic_posts WHERE id = ? OR parentId = ?`)
+    .run(id, id);
+}
+
+export function listTopicPosts(topicId: string): TopicPostRow[] {
+  const rows = getDb()
+    .prepare(`SELECT * FROM topic_posts WHERE topicId = ? ORDER BY createdAt`)
+    .all(topicId);
+  return rows as unknown as TopicPostRow[];
+}
+
+/** 讨论门槛的口径：该大类下已解析的视频数（proof-of-investment）。 */
+export function countAnalyzedByCategory(categoryId: string): number {
+  const row = getDb()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM source_assets WHERE bigCategoryId = ? AND status = 'analyzed'`
+    )
+    .get(categoryId) as { n: number } | undefined;
+  return row?.n ?? 0;
 }
 
 /** 地图是否已有真实内容（有归属的已解析视频）——有则地图层展示真实数据。 */
@@ -393,12 +532,15 @@ export function getParsedVideo(id: string): ParsedVideo | null {
     duration: asset.duration,
     cover: asset.cover,
     sourceUrl: asset.sourceUrl,
-    collectionId: asset.collectionId,
+    // 社会思想、自然科学及未分类内容统一属于“未知海域”。未知海域没有
+    // 区域地图，因此不能让旧的 misc-soc/misc-sci 归属泄漏到解析页导航。
+    collectionId: isMappedRegionCategory(asset.bigCategoryId) ? asset.collectionId : null,
     coreQuestion: analysis.coreQuestion,
     videoType: analysis.videoType,
     typeConfidence: analysis.typeConfidence,
     nodes: analysis.backbone.map((n, i) => ({
-      id: n.id || `${asset.id}-n${i + 1}`,
+      // 管线落库的 id 可能是数字（JSON 无类型约束），归一成字符串才能和 URL 里的 nodeId 对上
+      id: n.id != null && n.id !== "" ? String(n.id) : `${asset.id}-n${i + 1}`,
       label: n.concept,
       role: n.role,
       timestampText: n.timestamp,

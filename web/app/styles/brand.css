@@ -11,17 +11,17 @@
   position:relative;
   display:grid;
   place-items:center;
-  width:36px;
-  height:36px;
+  width:54px;
+  height:32px;
   flex:none;
 }
 
 .brandHomeLink__mark::after{
   content:"";
   position:absolute;
-  inset:4px;
+  inset:5px 3px;
   border:1px solid rgba(168,123,36,.38);
-  border-radius:50%;
+  border-radius:999px;
   opacity:0;
   pointer-events:none;
 }
@@ -38,10 +38,10 @@
 
 .brandHomeLink__name{
   font-family:var(--serif);
-  font-size:20px;
-  font-weight:600;
-  letter-spacing:.14em;
-  text-indent:.14em;
+  font-size:21px;
+  font-weight:500;
+  letter-spacing:.18em;
+  text-indent:.18em;
   white-space:nowrap;
 }
 
@@ -95,7 +95,7 @@
 }
 
 @media (max-width:560px){
-  .brandHomeLink__mark{width:34px;height:34px}
+  .brandHomeLink__mark{width:48px;height:29px}
   .brandHomeLink__name{font-size:19px}
   .brandHomeLink__edition{display:none}
 }

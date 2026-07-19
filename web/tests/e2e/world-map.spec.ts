@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator(".worldMapLabel")).toHaveCount(3);
 });
 
-test("uses home-fit zoom, pans the camera, focuses, enters, and restores", async ({ page }) => {
+test("uses home-fit zoom, pans the camera, focuses, enters, and resets on return", async ({ page }) => {
   const stage = page.locator(".worldMapStage");
   const zoom = page.locator(".worldMapControls output");
   await expect(zoom).toHaveText("93%");
@@ -20,16 +20,6 @@ test("uses home-fit zoom, pans the camera, focuses, enters, and restores", async
   await page.mouse.wheel(0, -120);
   await expect(zoom).not.toHaveText("93%");
 
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 70, box.y + box.height / 2 + 35, { steps: 7 });
-  await page.mouse.up();
-
-  const stored = await page.evaluate(() =>
-    JSON.parse(window.sessionStorage.getItem("echoes:world-map:r3f:v4") ?? "null"),
-  );
-  expect(Math.abs(stored.camera.x) + Math.abs(stored.camera.y)).toBeGreaterThan(0.5);
-
   const economy = page.locator('[data-region-id="region-eco"]');
   await economy.click();
   await expect(page.locator(".worldMapInfo")).toBeVisible();
@@ -38,8 +28,10 @@ test("uses home-fit zoom, pans the camera, focuses, enters, and restores", async
   await economy.click();
   await expect(page).toHaveURL(/\/category\/eco$/);
   await page.goBack();
-  await expect(page.locator(".worldMapInfo")).toBeVisible();
-  await expect(zoom).toHaveText("134%");
+  // Every entry into the world map resets to the home view, even a fresh visit
+  // that had previously panned/zoomed/selected a region in the same session.
+  await expect(page.locator(".worldMapInfo")).toHaveCount(0);
+  await expect(zoom).toHaveText("93%");
 });
 
 test("shows the complete world on mobile without scaling labels with the camera", async ({ page }) => {

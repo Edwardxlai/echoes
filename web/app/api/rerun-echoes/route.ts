@@ -2,7 +2,7 @@ import { getAnalysis, getAsset, listRecallSources, saveEchoes } from "@/lib/serv
 import { generateLinks, type AnalysisResult } from "@/lib/server/pipeline";
 
 /* 开发用：对已解析视频重跑 L5 回响匹配——提示词/展示结构升级后刷新存量。
-   逐条串行调 LLM，空结果也覆盖（清掉旧格式）。known/认知拓展不动。
+   逐条串行调 LLM，空结果也覆盖（清掉旧格式）。认知拓展不动。
    ?asset=<id> 只补跑单个资产。 */
 export async function POST(request: Request) {
   const only = new URL(request.url).searchParams.get("asset");

@@ -3,39 +3,52 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { CognitiveExpansion } from "@/lib/data";
+import { FocusMark } from "./EchoBlock";
 
-/* 认知·拓展：三个节点（已有/补缺/延伸）挂在一根发丝线上——脉络的点线语言，
+/* 认知·拓展：两个节点（补缺/延伸）挂在一根发丝线上——脉络的点线语言，
    点亮哪个节点，下方浮现哪块素色板，一次只看一块。
-   三块板共用同一副书摘卡骨架（参照 Readwise Daily Review / 微信读书分享卡）：
-   条目 = 18px 宋体正文，已有/延伸带"——"灰色落款行承载元信息（已有=出处，
-   延伸=门口人数）；补缺无落款，戳破+补上连读成一段，内容自己说话。
-   延伸条目点开出 AI 的 hint 和进同题讨论的门（门票在讨论区门口收，本页零输入框）。
-   讨论区为 P2（PRD §6.5），门口人数暂为种子数据；路由建成后 .door 换成 Link。 */
+   两块板共用同一副书摘卡骨架（参照 Readwise Daily Review / 微信读书分享卡）：
+   条目 = 18px 宋体正文；补缺戳破+补上连读成一段，内容自己说话。
+   延伸条目点开出 AI 的 hint 和一扇统一的"去讨论"门（暖金高亮，本页零输入框）。
+   门不显人数；topicBase（extend.{videoId|collectionId}）在则门通向同题空间 /topic/。 */
 
-type TabKey = "已有" | "补缺" | "延伸";
+type TabKey = "补缺" | "延伸";
 
 const hang = (s: string) => (/^[「《『【]/.test(s) ? " hang" : "");
 
+/* 抖音搜索页只认路径里的关键词，aid 是端上随机生成的追踪参数，可省略 */
+const douyinSearchUrl = (term: string) =>
+  `https://www.douyin.com/jingxuan/search/${encodeURIComponent(term)}?type=general`;
+
 export function CognitiveExpansionBlock({
   data,
-  mapHref,
-  scope = "video",
+  topicBase,
 }: {
   data: CognitiveExpansion;
-  mapHref: string;
-  scope?: "video" | "collection";
+  topicBase?: string;
 }) {
-  const known = data.gapFill.known;
   const gap = data.gapFill.gap ?? "";
   const fill = data.gapFill.fill ?? "";
-  // 三块各自有内容才占一个 tab：已有靠积累、补缺靠承重空洞（门控）、延伸恒在
+  // 各块有内容才占一个 tab：补缺靠承重空洞（门控）、延伸靠开放问题
+  // 单视频与合集共用本组件；两块都各自门控，缺哪块就不出对应 tab
   const tabs: TabKey[] = [
-    ...(known.length ? (["已有"] as TabKey[]) : []),
     ...(gap ? (["补缺"] as TabKey[]) : []),
-    "延伸",
+    ...(data.extend.length ? (["延伸"] as TabKey[]) : []),
   ];
-  const [tab, setTab] = useState<TabKey>(tabs[0]);
-  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [tab, setTab] = useState<TabKey>(tabs[0] ?? "延伸");
+  // 各条目独立开合（同脉络节点），不做"开一个关一个"的单开位
+  const [openSet, setOpenSet] = useState<ReadonlySet<number>>(new Set());
+  const toggleOpen = (i: number) =>
+    setOpenSet((s) => {
+      const next = new Set(s);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  // 补缺只有一条，gap 常驻当引子，fill 收放（点开才补上背景）
+  const [gapOpen, setGapOpen] = useState(false);
+
+  if (!tabs.length) return null;
 
   return (
     <>
@@ -57,55 +70,65 @@ export function CognitiveExpansionBlock({
       </div>
 
       <div className="xpanel" key={tab}>
-        {tab === "已有" && (
-          <>
-            {known.map((k, i) => (
-              <div className="xentry" key={i}>
-                <div className={`xq${hang(k.point)}`}>{k.point}</div>
-                <div className="xsrc">
-                  ——{" "}
-                  {k.fromTitle ? (
-                    k.fromVideoId ? (
-                      <Link className="kfrom" href={`/video/${k.fromVideoId}`}>
-                        《{k.fromTitle}》
-                      </Link>
-                    ) : (
-                      <>《{k.fromTitle}》</>
-                    )
-                  ) : scope === "collection" ? (
-                    "这组视频里讲过"
-                  ) : (
-                    "这条视频里刚讲过"
+        {tab === "补缺" && (
+          // 与延伸共用同一副 .xentry/.think 骨架：gap 常驻当引子，点开才收放出 fill 补上的背景
+          <div
+            className={`xentry think${gapOpen ? " open" : ""}`}
+            role="button"
+            tabIndex={0}
+            onClick={() => setGapOpen((v) => !v)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") setGapOpen((v) => !v);
+            }}
+          >
+            <div className="xqrow">
+              <div className={`xq${hang(gap)}`}>{gap.replace(/。$/, "")}</div>
+              <span className="xtoggle" aria-hidden>
+                {gapOpen ? "−" : "+"}
+              </span>
+            </div>
+            {fill && (
+              <div className="tframe">
+                <div className="tframe-in">
+                  <p className={`xg-fill${hang(fill)}`}>
+                    <FocusMark text={fill} focus={data.gapFill.focus} />
+                  </p>
+                  {Boolean(data.gapFill.searchTerms?.length) && (
+                    <div className="xsearch">
+                      <span className="xsearch-lead">去抖音搜</span>
+                      {data.gapFill.searchTerms!.map((term) => (
+                        <a
+                          key={term}
+                          className="src"
+                          href={douyinSearchUrl(term)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="src-no">搜</span>
+                          <span className="src-t">{term}</span>
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
-            ))}
-            <Link className="cta xmap" href={mapHref}>
-              这个话题下你的全部积累 →
-            </Link>
-          </>
-        )}
-
-        {tab === "补缺" && (
-          <div className="xentry">
-            {/* 两拍不贴标签：gap 做点题引子，fill 换行成背景正文，无落款 */}
-            <div className={`xq${hang(gap)}`}>{gap}</div>
-            {fill && <p className={`xfill${hang(fill)}`}>{fill}</p>}
+            )}
           </div>
         )}
 
         {tab === "延伸" &&
           data.extend.map((item, i) => {
-            const open = openIdx === i;
+            const open = openSet.has(i);
             return (
               <div
                 key={i}
                 className={`xentry think${open ? " open" : ""}`}
                 role="button"
                 tabIndex={0}
-                onClick={() => setOpenIdx(open ? null : i)}
+                onClick={() => toggleOpen(i)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") setOpenIdx(open ? null : i);
+                  if (e.key === "Enter" || e.key === " ") toggleOpen(i);
                 }}
               >
                 <div className="xqrow">
@@ -114,18 +137,20 @@ export function CognitiveExpansionBlock({
                     {open ? "−" : "+"}
                   </span>
                 </div>
-                <div className="xsrc">
-                  ——{" "}
-                  {item.voices > 0
-                    ? `${item.voices} 人带着判断在这一题下`
-                    : "还没有人进来"}
-                </div>
                 <div className="tframe">
                   <div className="tframe-in">
                     {item.hint}
-                    <span className="door">
-                      {item.voices > 0 ? "带着你的判断进去 →" : "做第一个 →"}
-                    </span>
+                    {topicBase ? (
+                      <Link
+                        className="door door--topic"
+                        href={`/topic/${topicBase}.${i}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        去讨论 →
+                      </Link>
+                    ) : (
+                      <span className="door">去讨论 →</span>
+                    )}
                   </div>
                 </div>
               </div>

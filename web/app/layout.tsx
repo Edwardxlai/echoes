@@ -6,9 +6,10 @@ import "@fontsource/noto-sans-sc/500.css";
 import "@fontsource/noto-serif-sc/index.css";
 import "@fontsource/noto-serif-sc/500.css";
 import "./globals.css";
+import { ParsingBadge } from "@/components/parsing/ParsingBadge";
 
 export const metadata: Metadata = {
-  title: "回响",
+  title: "知音",
   description: "内容不再刷完就沉底，而是接进你已有的知识里。",
 };
 
@@ -19,7 +20,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ParsingBadge />
+      </body>
     </html>
   );
 }

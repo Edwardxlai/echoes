@@ -2,8 +2,10 @@
 
 import { useContext } from "react";
 import type { MapItem } from "@/lib/map-config";
-import { CloudBank, EchoBeacon, Mountain, Tree, TreeCluster, WaterRipple } from "./TerrainDetails";
+import { Mountain, Tree, TreeCluster } from "./TerrainDetails";
+import { LandmarkGlyph, type GlyphKind } from "./LandmarkGlyph";
 import { MapActiveContext, MapDiscoveryContext } from "./MapStage";
+import { assignIslandArt, NEW_CHINA_ISLANDS, type IslandArt } from "./island-art";
 
 const ISLAND_TOPS = [
   "M-56-43C-57-62-38-75-18-73C-4-88 23-85 35-69C52-66 63-50 57-35C66-21 50-9 34-11C20 1-2-2-12-14C-31-8-50-20-48-34C-57-34-62-38-56-43Z",
@@ -21,89 +23,102 @@ const TOP_COLORS = ["#c9ddc7", "#cbd9eb", "#ddd0e6"];
 const SIDE_COLORS = ["#9caf9e", "#a8b6c5", "#b6a8ba"];
 const ISLAND_SCALES = [1.25, 1.14, 1.2];
 
-function SettlementLandmark() {
-  return (
-    <g transform="translate(-7 -54)">
-      <ellipse cx={5} cy={30} rx={31} ry={6} fill="var(--map-land-shadow)" />
-      <g transform="translate(-22 3)">
-        <path d="m0 8 9-5 13 5-10 6Z" fill="#fff9ee" />
-        <path d="M0 8v13l12 5V14Z" fill="#d8d2c4" />
-        <path d="m12 14 10-6v13l-10 5Z" fill="#9da29a" />
-        <path d="M-1 8 9-2 23 8 9 3Z" fill="#b77962" opacity={0.72} />
-      </g>
-      <g transform="translate(5 -2)">
-        <path d="m0 8 10-5 14 5-11 6Z" fill="#fffaf0" />
-        <path d="M0 8v16l13 5V14Z" fill="#d8d4ca" />
-        <path d="m13 14 11-6v16l-11 5Z" fill="#9aa09a" />
-        <path d="M-1 8 10-3 25 8 10 3Z" fill="#aa7566" opacity={0.76} />
-      </g>
-      <path d="M-27 30C-12 21 4 26 27 18" fill="none" stroke="#b2a58d" strokeWidth={1.6} strokeDasharray="3 3" />
-      <Tree x={31} y={14} scale={0.58} />
-    </g>
-  );
-}
+const NEW_CHINA_COLLECTION_ID = "07ae1f5b";
 
-function LighthouseLandmark() {
-  return (
-    <g transform="translate(0 -55)">
-      <ellipse cx={3} cy={32} rx={27} ry={6} fill="var(--map-land-shadow)" />
-      <path d="m-11-1 11-6 12 6L1 6Z" fill="#f9f7ef" />
-      <path d="M-11-1-7 28l8 4V6Z" fill="#d6d7d2" />
-      <path d="M1 6 12-1 8 28l-7 4Z" fill="#929e9d" />
-      <path d="m-15-4 15-8L16-4 1 5Z" fill="#b3846e" opacity={0.78} />
-      <path d="M-16-4 1 5 16-4v5L1 10-16 1Z" fill="#898e89" opacity={0.65} />
-      <path d="m-8-13 8-5 9 5-9 5Z" fill="#fff8df" />
-      <path d="M-8-13v8l8 4v-7Z" fill="#e5d8aa" />
-      <path d="m0-8 9-5v8L0-1Z" fill="#b89a62" />
-      <path d="M-22 0A24 14 0 0 0 22 0" fill="none" stroke="#9fb6d9" strokeWidth={1.2} opacity={0.54} />
-      <path d="M-28 0A30 19 0 0 0 28 0" fill="none" stroke="#9fb6d9" strokeWidth={1} opacity={0.3} />
-    </g>
-  );
-}
-
-function ArchiveLandmark() {
-  return (
-    <g transform="translate(0 -48)">
-      <ellipse cx={3} cy={27} rx={31} ry={6} fill="var(--map-land-shadow)" />
-      <path d="m-29 13 28-10 31 11L1 25Z" fill="#ece6dd" />
-      <path d="m-29 13 30 12 29-11v7L1 32-29 21Z" fill="#b8ada5" />
-      <path d="m-19-7 5-3 8 3-5 4Z" fill="#fffaf0" />
-      <path d="M-19-7v25l8 3V-3Z" fill="#d8d4cb" />
-      <path d="m-11-3 5-4v25l-5 3Z" fill="#9d9e98" />
-      <path d="m7-13 5-3 8 3-5 4Z" fill="#fffaf0" />
-      <path d="M7-13v31l8 3V-9Z" fill="#d8d4cb" />
-      <path d="m15-9 5-4v31l-5 3Z" fill="#9d9e98" />
-      <path d="M-11 0h25c9 0 14 5 14 14" fill="none" stroke="#b39cc9" strokeWidth={2.5} strokeLinecap="round" opacity={0.74} />
-      <Tree x={-31} y={12} scale={0.52} light="#b7b39c" dark="#8f9079" />
-    </g>
-  );
-}
+/* 岛屿资源的专属映射与类目资源池都在 island-art.ts；
+   这里只保留新中国系列的槽位取岛和渲染逻辑。
+   资源池未覆盖的类目（soc/sci 等）继续使用通用岛体。 */
+const ISLAND_GLYPH_KINDS: GlyphKind[] = ["city", "tower", "ruins", "port"];
 
 function IslandLandmark({ variant }: { variant: number }) {
-  if (variant === 1) return <LighthouseLandmark />;
-  if (variant === 2) return <ArchiveLandmark />;
-  return <SettlementLandmark />;
+  const kind = ISLAND_GLYPH_KINDS[variant % ISLAND_GLYPH_KINDS.length];
+  return (
+    <g transform="translate(-26 -68) scale(0.48)">
+      <LandmarkGlyph kind={kind} accent="var(--map-ink-soft)" />
+    </g>
+  );
+}
+
+function NewChinaIsland({ index }: { index: number }) {
+  const island = NEW_CHINA_ISLANDS[index % NEW_CHINA_ISLANDS.length];
+  return (
+    <image
+      className="island__newChinaArt"
+      href={island.href}
+      x={-88}
+      y={-117.33}
+      width={176}
+      height={117.33}
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <title>{island.label}</title>
+    </image>
+  );
+}
+
+/* 经济岛为方形构图（含更高的建筑），其余类目为 3:2 横构图。 */
+function ArtIsland({ art, categoryId }: { art: IslandArt; categoryId: string }) {
+  const square = categoryId === "eco";
+  const artClass = categoryId === "eco"
+    ? "economy"
+    : categoryId === "tech"
+      ? "technology"
+      : categoryId === "unknown"
+        ? "unknown"
+        : "history";
+  return (
+    <image
+      className={`island__${artClass}Art`}
+      href={art.href}
+      x={-88}
+      y={square ? -154 : -117.33}
+      width={176}
+      height={square ? 176 : 117.33}
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <title>{art.label}</title>
+    </image>
+  );
 }
 
 function IslandVisual({
   variant,
-  echo,
-  unviewed,
   isNew,
+  newChinaIndex,
+  art,
+  categoryId,
 }: {
   variant: number;
-  echo: boolean;
-  unviewed: boolean;
   isNew: boolean;
+  newChinaIndex?: number;
+  art?: IslandArt;
+  categoryId: string;
 }) {
+  if (newChinaIndex !== undefined || art !== undefined) {
+    return (
+      <g>
+        {newChinaIndex !== undefined ? <NewChinaIsland index={newChinaIndex} /> : null}
+        {art !== undefined ? <ArtIsland art={art} categoryId={categoryId} /> : null}
+        {isNew ? (
+          <g transform="translate(-54 -72)" stroke="var(--map-region-eco-line)" strokeWidth={1.5} strokeLinecap="round">
+            <path d="M0 12V0m0 5-7-5m7 8 8-5" />
+            <path d="M-7 0c5-1 7 1 7 5-5 1-7-1-7-5Zm15 3c-5-1-7 1-8 5 5 1 7-1 8-5Z" fill="#b8d1b7" stroke="none" />
+          </g>
+        ) : null}
+      </g>
+    );
+  }
+
   const top = ISLAND_TOPS[variant];
+  const topColor = TOP_COLORS[variant];
+  const sideColor = SIDE_COLORS[variant];
   return (
     <g>
       <ellipse className="terrain-shadow" cx={5} cy={1} rx={56} ry={9} />
       <path d={top} transform="translate(0 11)" fill="#d7ccb7" opacity={0.78} />
-      <path d={top} transform="translate(0 7)" fill={SIDE_COLORS[variant]} opacity={0.92} />
+      <path d={top} transform="translate(0 7)" fill={sideColor} opacity={0.92} />
       <path d={top} fill="var(--map-sand)" />
-      <path d={ISLAND_INNERS[variant]} fill={TOP_COLORS[variant]} opacity={0.9} />
+      <path d={ISLAND_INNERS[variant]} fill={topColor} opacity={0.9} />
       <path d={top} fill="none" stroke="#fffdf5" strokeWidth={1.7} opacity={0.68} />
       <path d="M-42-21C-17-11 11-13 40-24" fill="none" stroke="#9b937e" strokeWidth={1.1} opacity={0.26} />
 
@@ -127,23 +142,34 @@ function IslandVisual({
       ) : null}
 
       <IslandLandmark variant={variant} />
-      {echo ? <EchoBeacon x={37} y={-62} scale={0.82} glowId="archipelago-echo-glow" /> : null}
       {isNew ? (
         <g transform="translate(-38 -57)" stroke="var(--map-region-eco-line)" strokeWidth={1.5} strokeLinecap="round">
           <path d="M0 12V0m0 5-7-5m7 8 8-5" />
           <path d="M-7 0c5-1 7 1 7 5-5 1-7-1-7-5Zm15 3c-5-1-7 1-8 5 5 1 7-1 8-5Z" fill="#b8d1b7" stroke="none" />
         </g>
       ) : null}
-      {unviewed ? <CloudBank x={0} y={-43} scale={0.72} opacity={0.72} /> : null}
     </g>
   );
 }
 
-export function ArchipelagoTerrain({ islands }: {
+export function ArchipelagoTerrain({ collectionId, categoryId, islands }: {
+  collectionId: string;
+  categoryId: string;
   islands: { item: MapItem; echo: boolean; viewed?: boolean; isNew?: boolean; contentRich?: boolean }[];
 }) {
   const activeId = useContext(MapActiveContext);
   const discovery = useContext(MapDiscoveryContext);
+  const usesNewChinaIslandArt = collectionId === NEW_CHINA_COLLECTION_ID;
+  const usesInternetEpicLayout = collectionId === "b9702449";
+  const artByEntity = usesNewChinaIslandArt
+    ? new Map<string, IslandArt>()
+    : assignIslandArt(categoryId, islands.map(({ item }) => item.entityId));
+  if (usesInternetEpicLayout && islands[5]) {
+    artByEntity.set(islands[5].item.entityId, {
+      href: "/map-runtime/archipelago/economy/b9702449/islands/economy_b9702449_island_150bd446_lod1_v01.webp",
+      label: "互联网工业岛",
+    });
+  }
 
   return (
     <svg
@@ -153,55 +179,10 @@ export function ArchipelagoTerrain({ islands }: {
       focusable="false"
       pointerEvents="none"
     >
-      <defs>
-        <linearGradient id="archipelago-water" x1="80" y1="25" x2="930" y2="535" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#e8f4f2" />
-          <stop offset="0.5" stopColor="var(--map-ocean)" />
-          <stop offset="1" stopColor="var(--map-ocean-deep)" />
-        </linearGradient>
-        <filter id="archipelago-echo-glow" x="-180%" y="-180%" width="460%" height="460%" colorInterpolationFilters="sRGB">
-          <feGaussianBlur stdDeviation="4" result="blur" />
-          <feFlood floodColor="var(--amber-hot)" floodOpacity="0.58" result="gold" />
-          <feComposite in="gold" in2="blur" operator="in" result="glow" />
-          <feMerge>
-            <feMergeNode in="glow" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-
-      <rect x={0} y={0} width={1000} height={560} rx={20} fill="url(#archipelago-water)" />
-      <path d="M0 412C170 366 324 404 481 378C650 350 793 305 1000 327V560H0Z" fill="#9bc8cd" opacity={0.14} />
-      <path d="M27 180C156 149 265 156 369 132M669 438C790 409 874 421 976 389" fill="none" stroke="#f8ffff" strokeWidth={2} strokeLinecap="round" opacity={0.36} />
-
-      {islands.slice(1).map(({ item }, i) => {
-        const previous = islands[i].item;
-        const x1 = previous.x * 10;
-        const y1 = previous.y * 5.6;
-        const x2 = item.x * 10;
-        const y2 = item.y * 5.6;
-        const cx = (x1 + x2) / 2;
-        const cy = Math.min(y1, y2) - 38 - i * 8;
-        return (
-          <g key={`${previous.id}-${item.id}`} fill="none" strokeLinecap="round">
-            <path d={`M${x1} ${y1}Q${cx} ${cy} ${x2} ${y2}`} stroke="#f4ffff" strokeWidth={5} opacity={0.34} />
-            <path
-              d={`M${x1} ${y1}Q${cx} ${cy} ${x2} ${y2}`}
-              stroke="#8fb9bd"
-              strokeWidth={1.5}
-              strokeDasharray="5 7"
-              opacity={0.54}
-            />
-            <circle cx={cx} cy={cy} r={3} fill="#f7ffff" stroke="#9fc4c7" strokeWidth={1} opacity={0.72} />
-          </g>
-        );
-      })}
-
-      <WaterRipple x={104} y={316} scale={1.08} opacity={0.44} />
-      <WaterRipple x={874} y={247} scale={1.25} opacity={0.44} />
-      <WaterRipple x={835} y={466} scale={0.82} opacity={0.38} />
-
-      {islands.map(({ item, echo, viewed = true, isNew = false, contentRich = false }, i) => {
+      {/* 不再画一整块带圆角的不透明水面——外层 .mapStage--regionAtlas 的
+          真实水面贴图才是"海"，这里只叠一层柔和的深浅渐变，让岛屿像
+          嵌进水里而不是贴在一张卡片上。 */}
+      {islands.map(({ item, viewed = true, isNew = false, contentRich = false }, i) => {
         const unviewed = !viewed;
         const isActive = activeId === item.id;
         const isRevealing = discovery.revealingIds.has(item.id);
@@ -209,39 +190,42 @@ export function ArchipelagoTerrain({ islands }: {
         const isDiscoveryHidden =
           discovery.enabled && (!discovery.ready || (!isDiscovered && !isRevealing));
         const variant = i % ISLAND_TOPS.length;
-        const scale = ISLAND_SCALES[variant] * (contentRich ? 1.12 : 1);
+        const art = artByEntity.get(item.entityId);
+        const usesCustomIslandArt = usesNewChinaIslandArt || art !== undefined;
+        const isEconomyArt = art !== undefined && categoryId === "eco";
+        const isTechnologyArt = art !== undefined && categoryId === "tech";
+        const isUnknownArt = art !== undefined && categoryId === "unknown";
+        const isHistoryArt = art !== undefined && !isEconomyArt && !isTechnologyArt && !isUnknownArt;
+        const hierarchyScale =
+          isEconomyArt
+            ? [1.16, 1.06, 1.06, 0.96, 0.96, 0.9, 0.9][i] ?? 0.88
+            : 1;
+        const scale = usesCustomIslandArt
+          ? 1.12 * hierarchyScale * ((isEconomyArt || isTechnologyArt) && contentRich ? 1.08 : 1)
+          : ISLAND_SCALES[variant] * (contentRich ? 1.12 : 1);
+        const layoutScale = usesInternetEpicLayout ? 0.88 : 1;
 
         return (
-          <g key={item.id} transform={`translate(${item.x * 10} ${item.y * 5.6 + 2}) scale(${scale})`}>
+          <g key={item.id} transform={`translate(${item.x * 10} ${item.y * 5.6 + 2}) scale(${scale * layoutScale})`}>
             <g
-              className={`island${unviewed ? " is-unviewed" : ""}${isNew ? " is-new" : ""}${
+              className={`island${usesNewChinaIslandArt ? " island--newChina" : ""}${isEconomyArt ? " island--economy" : ""}${isTechnologyArt ? " island--technology" : ""}${isHistoryArt ? " island--history" : ""}${isUnknownArt ? " island--unknown" : ""}${unviewed ? " is-unviewed" : ""}${isNew ? " is-new" : ""}${
                 isActive ? " is-active" : ""
-              }${isRevealing ? " is-discovering" : ""}${
+              }${isRevealing && !usesNewChinaIslandArt ? " is-discovering" : ""}${
                 isDiscoveryHidden ? " is-discovery-hidden" : ""
               }`}
             >
-              <IslandVisual variant={variant} echo={echo} unviewed={unviewed} isNew={isNew} />
-              {isRevealing ? (
-                <g className="islandDiscoveryFog" aria-hidden="true">
-                  <ellipse cx={0} cy={-25} rx={78} ry={47} fill="#5f5968" opacity={0.5} />
-                  <CloudBank x={0} y={-35} scale={1.05} opacity={0.92} />
-                </g>
-              ) : null}
+              <IslandVisual
+                variant={variant}
+                isNew={isNew}
+                newChinaIndex={usesNewChinaIslandArt ? i : undefined}
+                art={art}
+                categoryId={categoryId}
+              />
             </g>
           </g>
         );
       })}
 
-      <g opacity={0.48}>
-        <path d="m159 405 12-5 13 6-13 5Z" fill="#e7ddca" />
-        <path d="m159 405 12 6 13-5v4l-13 6-12-6Z" fill="#9caea5" />
-        <path d="m808 160 9-4 10 4-10 5Z" fill="#e7ddca" />
-        <path d="m808 160 9 5 10-5v3l-10 5-9-5Z" fill="#9caea5" />
-      </g>
-
-      <CloudBank x={82} y={91} scale={0.98} opacity={0.5} />
-      <CloudBank x={914} y={106} scale={0.8} opacity={0.43} />
-      <CloudBank x={916} y={479} scale={1.08} opacity={0.4} />
     </svg>
   );
 }

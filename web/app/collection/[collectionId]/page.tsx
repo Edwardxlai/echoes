@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCollection, videosOf } from "@/lib/data";
+import { getCategory, getCollection, videosOf } from "@/lib/data";
 import { ARCHIPELAGO_SCENES, type MapItem } from "@/lib/map-config";
-import { realCollectionDetail, type RealIsland } from "@/lib/server/real-data";
+import { realCollectionDetail, UNKNOWN_SEA_COLLECTION_ID, type RealIsland } from "@/lib/server/real-data";
 import { MapStage, type HotspotDef } from "@/components/map/MapStage";
 import { ArchipelagoTerrain } from "@/components/map/ArchipelagoTerrain";
-import { MapKicker, MapStat, MapTopbar } from "@/components/map/MapChrome";
+import { MapAtlasNav } from "@/components/map/MapChrome";
+import RegionWaterCanvas from "@/components/map/RegionWaterCanvas";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,36 @@ type IslandDef = Omit<RealIsland, "mapItem" | "cover" | "sourceUrl"> & {
   sourceUrl?: string;
   mapItem: MapItem;
 };
+
+// ArchipelagoTerrain 的 SVG viewBox（1000×560），排版语言与区域地图一致。
+const ARCHIPELAGO_ASPECT_RATIO = 1000 / 560;
+// Every island visual is drawn mostly above its map anchor. Compensate at the
+// page boundary so both seeded and database-backed archipelagos are centered,
+// while hotspots, labels and camera focus continue to share the same anchor.
+const ARCHIPELAGO_VISUAL_CENTER_Y_OFFSET = 10;
+
+function centerArchipelagoItem(mapItem: MapItem): MapItem {
+  const yOffset = ARCHIPELAGO_VISUAL_CENTER_Y_OFFSET;
+  return {
+    ...mapItem,
+    y: mapItem.y + yOffset,
+    position: [mapItem.position[0], mapItem.position[1] + yOffset, mapItem.position[2]],
+    labelAnchor: [mapItem.labelAnchor[0], mapItem.labelAnchor[1] + yOffset, mapItem.labelAnchor[2]],
+    cameraTarget: {
+      ...mapItem.cameraTarget,
+      position: [
+        mapItem.cameraTarget.position[0],
+        mapItem.cameraTarget.position[1] + yOffset,
+        mapItem.cameraTarget.position[2],
+      ],
+      target: [
+        mapItem.cameraTarget.target[0],
+        mapItem.cameraTarget.target[1] + yOffset,
+        mapItem.cameraTarget.target[2],
+      ],
+    },
+  };
+}
 
 export default async function ArchipelagoMapPage({
   params,
@@ -61,9 +92,16 @@ export default async function ArchipelagoMapPage({
     }));
   }
 
+  islands = islands.map((island) => ({
+    ...island,
+    mapItem: centerArchipelagoItem(island.mapItem),
+  }));
+
   const collection = seed
     ? { name: seed.name, categoryId: seed.categoryId, echoCount: seed.echoCount, synthesis: !!seed.synthesis }
     : { name: real!.name, categoryId: real!.categoryId, echoCount: real!.echoCount, synthesis: !!real!.synthesis };
+  const category = getCategory(collection.categoryId);
+  const isUnknownSea = collectionId === UNKNOWN_SEA_COLLECTION_ID;
 
   const items: HotspotDef[] = islands.map((island) => ({
     id: island.mapItem.id,
@@ -92,53 +130,32 @@ export default async function ArchipelagoMapPage({
     hitBox: island.mapItem.hitBox,
   }));
 
-  const viewedCount = islands.filter((island) => island.viewed).length;
-
   return (
-    <main className="mapPage mapPage--archipelago">
+    <main className="mapPage mapPage--archipelago mapPage--regionAtlas">
       <div className="mapPage__grain" aria-hidden="true" />
-      <div className="mapShell mapShell--inner">
-        <MapTopbar
-          backHref={`/category/${collection.categoryId}`}
-          backLabel="返回区域地图"
-          status={`${islands.length} 座视频岛屿 · ${collection.echoCount} 次回响`}
-        />
+      <h1 className="srOnly">{collection.name}群岛</h1>
 
-        <header className="mapIntro mapIntro--collection">
-          <div className="mapIntro__copy">
-            <MapKicker index="03">一组视频，被整理成一片可以反复进入的群岛</MapKicker>
-            <h1>{collection.name}</h1>
-            <p>每座岛屿是一条视频。雾中的还未看过，金色信标说明它正在与你过去看过的内容发生联系。</p>
-          </div>
+      <MapAtlasNav
+        href={isUnknownSea ? "/" : `/category/${collection.categoryId}`}
+        label={isUnknownSea ? "世界地图" : category ? `${category.name}区域` : "区域地图"}
+      />
 
-          <div className="collectionActions">
-            <div className="mapStats mapStats--inner" aria-label="合集概况">
-              <MapStat value={islands.length} label="视频岛屿" />
-              <MapStat value={`${viewedCount}/${islands.length}`} label="已经点亮" />
-              <MapStat value={collection.echoCount} label="回响连接" />
-            </div>
-            {collection.synthesis && (
-              <Link className="synthesisLink" href={`/collection/${collectionId}/synthesis`}>
-                <span>
-                  <small>跨视频关系</small>
-                  看全貌
-                </span>
-                <i aria-hidden="true">↗</i>
-              </Link>
-            )}
-          </div>
-        </header>
-      </div>
-
-      <section className="mapSceneSection" aria-label={`${collection.name}群岛地图`}>
-        <div className="mapSceneSection__caption">
-          <span>ARCHIPELAGO / {collectionId.toUpperCase()}</span>
-          <p>选中岛屿，先看核心问题，再决定是否进入解析</p>
-        </div>
+      <section
+        className="mapSceneSection mapSceneSection--regionAtlas"
+        aria-label={`${collection.name}群岛地图`}
+      >
         <MapStage
+          className="mapStage--regionAtlas mapStage--archipelago"
+          sceneAspectRatio={ARCHIPELAGO_ASPECT_RATIO}
+          fitMode="contain"
+          fitPadding={{ desktop: 1, mobile: 0.86 }}
+          resetViewOnPanelClose
+          lockVisualOnSelection
           discoveryNamespace={`collection:${collectionId}`}
           background={
             <ArchipelagoTerrain
+              collectionId={collectionId}
+              categoryId={collection.categoryId}
               islands={islands.map((island) => ({
                 item: island.mapItem,
                 echo: island.echoCount > 0,
@@ -148,16 +165,33 @@ export default async function ArchipelagoMapPage({
               }))}
             />
           }
+          stageBackground={
+            <div className="regionStageWater">
+              <RegionWaterCanvas />
+            </div>
+          }
           items={items}
         />
       </section>
 
-      <footer className="mapLegend mapShell" aria-label="岛屿状态说明">
-        <span><i className="legendMark legendMark--viewed" />已经观看</span>
-        <span><i className="legendMark legendMark--unviewed" />还未观看</span>
-        <span><i className="legendMark legendMark--echo" />正在回响</span>
-        <span><i className="legendMark legendMark--new" />最近新增</span>
-      </footer>
+      {collection.synthesis && (
+        <Link className="archipelagoSynthesis" href={`/collection/${collectionId}/synthesis`}>
+          <span className="archipelagoSynthesis__copy">
+            <small>跨视频关系</small>
+            <strong>合集解析</strong>
+          </span>
+          <i aria-hidden="true">↗</i>
+        </Link>
+      )}
+
+      <div
+        className="regionAtlasLocator"
+        aria-label={`${collection.name}群岛，共 ${islands.length} 座视频岛屿，${collection.echoCount} 次回响`}
+      >
+        <span>ARCHIPELAGO · {islands.length} ISLANDS</span>
+        <strong>{collection.name}</strong>
+        <i aria-hidden="true" />
+      </div>
     </main>
   );
 }

@@ -28,8 +28,16 @@ export default function GroupParsingPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const [assets, setAssets] = useState<GroupAsset[] | null>(null);
   const [gone, setGone] = useState(false);
+  const [pollEpoch, setPollEpoch] = useState(0); // 重试后 bump，重新拉起已停的轮询
 
   const settled = (a: GroupAsset) => a.status === "analyzed" || a.status === "failed";
+
+  const retry = async (assetId: string) => {
+    try {
+      await fetch(`/api/assets/${assetId}/retry`, { method: "POST" });
+      setPollEpoch((n) => n + 1);
+    } catch { /* 失败保持原样，可再点 */ }
+  };
 
   useEffect(() => {
     let stop = false;
@@ -48,15 +56,18 @@ export default function GroupParsingPage() {
       else poll();
     }, 2000);
     return () => clearInterval(t);
-  }, [groupId]);
+  }, [groupId, pollEpoch]);
 
   const doneCount = assets?.filter((a) => a.status === "analyzed").length ?? 0;
+  const finished = !!assets && assets.every(settled);
 
   return (
     <div className="doc">
       <BrandHomeLink className="readerBrand" />
 
-      <div className="kick">接入脉络 · 一组视频</div>
+      <div className="docNav">
+        <Link className="backlink" href="/">← &nbsp;世界地图</Link>
+      </div>
       <h1 className="display">
         {assets
           ? `${doneCount} / ${assets.length} 条已完成`
@@ -67,8 +78,7 @@ export default function GroupParsingPage() {
         <div className="perr">
           <div className="pt">找不到这组解析任务</div>
           <div className="pd">
-            回到世界地图重新粘贴链接，或先
-            <Link className="kfrom" href="/collection/c1/synthesis">用示例数据看看</Link>。
+            <Link className="kfrom" href="/">回到世界地图</Link>重新粘贴链接。
           </div>
         </div>
       )}
@@ -92,11 +102,26 @@ export default function GroupParsingPage() {
                     : ""}
                 </span>
                 <span className="dur">
-                  {a.status === "failed" ? STATUS_TEXT.failed : a.step || STATUS_TEXT[a.status]}
+                  {a.status === "failed" ? (
+                    <>
+                      {STATUS_TEXT.failed}&nbsp;·&nbsp;
+                      <button type="button" className="kfrom" onClick={() => retry(a.id)}>
+                        重试
+                      </button>
+                    </>
+                  ) : (
+                    a.step || STATUS_TEXT[a.status]
+                  )}
                 </span>
               </div>
             )
           )}
+        </div>
+      )}
+
+      {!gone && !finished && (
+        <div className="pwander">
+          <Link className="kfrom" href="/">先去逛逛，待会回来看</Link>
         </div>
       )}
 

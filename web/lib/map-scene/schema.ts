@@ -1,4 +1,10 @@
-export type WorldRegionId = "region-eco" | "region-his" | "region-tech";
+export type WorldRegionId =
+  | "region-eco"
+  | "region-his"
+  | "region-tech"
+  | "region-unknown"
+  | "region-soc"
+  | "region-sci";
 
 export interface WorldCameraPreset {
   target: [number, number];
@@ -21,10 +27,17 @@ export type WorldExpansionIslandState = "locked" | "available" | "hidden";
 
 export interface WorldExpansionIslandManifest {
   id: string;
+  regionId: WorldRegionId;
+  categoryId: "unknown" | "soc" | "sci";
   state: WorldExpansionIslandState;
   position: [number, number, number];
   size: [number, number];
+  anchor: [number, number, number];
+  hitSize: [number, number];
+  focus: WorldCameraPreset;
   assets: {
+    /** Optional authored composite for special regions that do not use the layered coast stack. */
+    flatTerrain?: string;
     terrain: string;
     contactShadow: string;
     height: string;

@@ -3,18 +3,22 @@ import {
   saveAnalysis, saveEchoes, saveExpansion,
 } from "@/lib/server/store";
 import {
-  analyzeTranscript, generateLinks, generateKnown, generateExpansion, type KnownPoint,
+  analyzeTranscript, generateLinks, generateExpansion, VIDEO_TYPES,
+  type AnalysisResult,
 } from "@/lib/server/pipeline";
 
 /* 开发用：对已解析视频重跑 L1 脉络分析（PRD 变更摘要 #15：五类骨架，新增叙事类）。
-   backbone 换血后回响的 nodeIndex 与认知拓展的 known 全部失效，故 L5/L4 连带重跑；
+   backbone 换血后回响的 nodeIndex 与认知拓展全部失效，故 L5/L4 连带重跑；
    L3 大类归属不动——固定策展坐标红线，重跑不得让内容在地图上跳变。
+   类型同理默认锁定：沿用已定 videoType，重跑只换骨架血不换类型（类型漂移遗留的修复）；
+   ?retype=1 才重新判型（#15 那类骨架体系升级的迁移场景用）。
    默认只重跑当前 videoType=intro 的存量（#15 要求至少覆盖原介绍类）；
    ?all=1 全量；?asset=<id> 只跑单个。逐条串行（sidecar 限流同 rerun-echoes）。 */
 export async function POST(request: Request) {
   const q = new URL(request.url).searchParams;
   const only = q.get("asset");
   const all = q.get("all") === "1";
+  const retype = q.get("retype") === "1";
   const results: {
     assetId: string; title: string;
     from?: string; to?: string; nodes?: number; echoes?: number; error?: string;
@@ -32,20 +36,23 @@ export async function POST(request: Request) {
       results.push({ assetId: src.assetId, title, error: "无转写" });
       continue;
     }
+    const lockType = !retype && VIDEO_TYPES.has(analysis.videoType)
+      ? (analysis.videoType as AnalysisResult["video_type"])
+      : undefined;
     try {
-      const a = await analyzeTranscript(transcript);
+      const a = await analyzeTranscript(transcript, lockType ? { lockType } : undefined);
       // saveAnalysis 的 REPLACE 会顺带清空旧 cognitiveExpansion/echoes 列——它们挂在旧 backbone 上，本就该作废
       saveAnalysis({
         assetId: src.assetId,
         coreQuestion: a.core_question,
         videoType: a.video_type,
-        typeConfidence: a.type_confidence,
+        // 锁定重跑时保留原判定置信度——本次没有重新判型，模型给的置信度没有意义
+        typeConfidence: lockType ? analysis.typeConfidence : a.type_confidence,
         summary: a.summary,
         backbone: a.backbone,
         takeaways: a.takeaways,
       });
 
-      let known: KnownPoint[] = [];
       let echoCount = 0;
       try {
         const links = await generateLinks(a, asset.title, listRecallSources(src.assetId));
@@ -53,12 +60,9 @@ export async function POST(request: Request) {
         saveEchoes(src.assetId, links.echoes);
       } catch { /* 没有回响，脉络照常可用 */ }
       try {
-        known = await generateKnown(a, listRecallSources(src.assetId));
-      } catch { /* 没有已有积累，认知拓展照常可用 */ }
-      try {
-        const exp = await generateExpansion(a, known.map(({ point, fromTitle }) => ({ point, fromTitle })));
+        const exp = await generateExpansion(a);
         saveExpansion(src.assetId, {
-          gapFill: { known, ...(exp.gap ? { gap: exp.gap, fill: exp.fill } : {}) },
+          gapFill: exp.gap ? { gap: exp.gap, fill: exp.fill } : {},
           extend: exp.extend.map((x) => ({ ...x, voices: 0 })),
         });
       } catch { /* 脉络照常可用 */ }

@@ -17,15 +17,49 @@
 .backlink{display:inline-flex;align-items:center;gap:10px;margin-bottom:10px;
   font-size:14px;color:var(--ink-3);text-decoration:none;transition:color .18s}
 .backlink:hover{color:var(--ink)}
+/* 返回行：左回地图，右去源头 + 移动（次要入口，气质同群岛面板 infoPanel__source）。
+   sourceUrl 缺失（上传文件兜底录入）时源头跳转不渲染 */
+.docNav{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.sourceJump{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+  font-family:var(--sans);font-size:12px;letter-spacing:.04em;
+  color:var(--ink-3);text-decoration:none;transition:color .18s}
+.sourceJump:hover{color:var(--ink)}
+.sourceJump:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+/* 右端组：查看原视频 + 「移动」（人工归属修正，低频动作与源头跳转同级同色） */
+.navR{position:relative;display:flex;align-items:baseline;gap:14px;white-space:nowrap}
+.moveCtl{position:relative}
+.moveBtn{border:0;background:none;padding:0 2px;font-family:var(--sans);font-size:12px;
+  letter-spacing:.04em;color:var(--ink-3);cursor:pointer;transition:color .18s}
+.moveBtn:hover,.moveBtn[aria-expanded="true"]{color:var(--ink)}
+.moveBtn:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+/* 两级归属面板：贴右缘下拉，气质同 pbadge 下拉 */
+.movePick{position:absolute;top:calc(100% + 8px);right:0;z-index:30;width:200px;
+  display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--rule);
+  box-shadow:0 6px 24px rgba(28,26,22,.12);font-family:var(--sans)}
+.movePick__head{padding:9px 14px 7px;font-size:11px;letter-spacing:.08em;
+  color:var(--ink-3);border-bottom:1px solid var(--rule);text-align:left}
+.movePick__head--back{border-top:0;background:none;cursor:pointer;font-family:var(--sans)}
+.movePick__head--back:hover{color:var(--ink)}
+.movePick__head--back:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
+.movePick__item{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  width:100%;padding:8px 14px;border:0;background:none;text-align:left;
+  font-family:var(--sans);font-size:12.5px;color:var(--ink);cursor:pointer;transition:background .15s}
+.movePick__item:hover:not(:disabled){background:var(--bg-soft)}
+.movePick__item:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
+.movePick__item:disabled{color:var(--ink-3);cursor:default}
+.movePick__item--sea{border-top:1px solid var(--rule)}
+.movePick__mark{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--ink-3)}
+.movePick__err{padding:7px 14px 9px;font-size:11.5px;color:var(--no)}
 .colophon{margin-top:88px;text-align:center;font-family:var(--mono);font-size:11px;
   color:var(--ink-3);letter-spacing:.3em;text-indent:.3em}
 
 /* ---------- 页头 ---------- */
-.kick{font-family:var(--sans);font-weight:500;font-size:12px;letter-spacing:.08em;
-  color:var(--ink-3);margin-bottom:10px}
+.kicktime{font-family:var(--mono);letter-spacing:0;font-variant-numeric:tabular-nums;margin-left:8px}
 .display{font-family:var(--serif);font-weight:400;font-size:clamp(27px,4vw,36px);
   line-height:1.5;letter-spacing:.01em;text-wrap:balance}
 .display--videoTitle{overflow:hidden;max-width:100%;text-overflow:ellipsis;white-space:nowrap}
+/* AI 生成的核心问题句，不是标题——字号降一档、墨色浅一档，读起来像引言而非命名 */
+.display--question{font-size:clamp(20px,2.6vw,24px);line-height:1.65;color:var(--ink-2)}
 .dmeta{display:flex;flex-wrap:nowrap;align-items:baseline;
   margin-top:16px;font-family:var(--sans);font-size:13px;color:var(--ink-3);
   font-variant-numeric:tabular-nums}
@@ -78,15 +112,17 @@
   color:var(--amber);cursor:pointer;background:none;border:0;padding:0;
   text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
 .echoIn .ejump:hover{color:var(--ink)}
-.echoIn .esrc{margin-top:10px;font-size:12px;color:var(--ink-3)}
-.echoIn .esrc .ejump{margin:0 0 0 10px;font-size:12px}
+.echoIn .esrc{margin-top:10px;font-size:12px;color:var(--ink-3);
+  display:flex;align-items:baseline;gap:10px}
+.echoIn .esrc .esrc-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.echoIn .esrc .ejump{flex:none;margin:0;font-size:12px}
 
 /* 方案 D「只留旧方」：旧句与上方节点叙述上下对照，两侧的分歧焦点各划一处暖金荧光 */
 .echoIn .eq{margin-top:8px;font-size:15px;line-height:1.85;color:var(--ink)}
 .efx{background:linear-gradient(180deg,transparent 58%,var(--amber-wash) 58%)}
 
 /* ---------- 认知拓展：节点选择器 + 单板浮现 ----------
-   三个墨点节点（已有/补缺/延伸）挂在一根发丝线上——沿用脉络的点线语言，
+   两个墨点节点（补缺/延伸）挂在一根发丝线上——沿用脉络的点线语言，
    点亮的节点实心，未选的空心。下方一次只浮现一块素色板：
    平色、直角、无边框无阴影（设计语言「真实物件才成面」条款）。 */
 .xnav{display:flex;align-items:flex-start;margin:34px auto 0;max-width:440px}
@@ -103,38 +139,40 @@
 .xnode:hover .xname{color:var(--ink)}
 .xlink{flex:1;height:1px;background:var(--rule);margin-top:4px}
 
-/* 板内排版：三块板共用一副书摘卡骨架——
-   条目 = 18px 宋体正文 + "——"灰色落款行（出处/为什么没答案/门口人数），
+/* 板内排版：两块板共用一副书摘卡骨架——
+   条目 = 18px 宋体正文；延伸带 "——" 灰色落款行（门口人数），补缺无落款，
    条目间距 26px，无编号无发丝线；行首全角标点悬挂（.hang）。 */
 .xpanel{margin-top:26px;background:var(--bg-soft);padding:32px 36px 30px;
   min-height:120px;animation:xfade .24s ease}
 @keyframes xfade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.xentry{padding:20px 0;border-bottom:1px solid var(--rule)}
-.xentry:first-child{padding-top:0}
-.xentry:last-child{border-bottom:0;padding-bottom:0}
+.xentry{border-left:2px solid var(--rule);padding-left:20px}
+.xentry+.xentry{margin-top:26px}
 .xqrow{display:flex;align-items:baseline;gap:14px}
 .xqrow .xq{flex:1}
 .xtoggle{font-family:var(--mono);font-size:14px;color:var(--ink-3);transition:color .18s}
 .think:hover .xtoggle{color:var(--ink)}
 .xq{font-family:var(--serif);font-size:18px;line-height:1.9;color:var(--ink)}
 .hang{text-indent:-.5em}
-/* 补缺·补上：gap 引子(.xq)下一段背景正文，降一档字号+次级墨色，两拍不贴标签 */
-.xfill{margin-top:12px;font-family:var(--serif);font-size:16px;line-height:1.95;color:var(--ink-2)}
-.xsrc{margin-top:7px;font-family:var(--sans);font-size:12.5px;color:var(--ink-3)}
-.xsrc .kfrom{color:inherit;text-decoration:underline;text-underline-offset:4px;
-  text-decoration-thickness:1px;text-decoration-color:var(--ink-3);transition:color .18s}
-.xsrc .kfrom:hover{color:var(--ink)}
-.xmap{margin-top:30px;font-size:15px}
-
+/* 补缺（左发丝轴边注，与延伸条目共用同一副 .xentry 骨架）：引子复用 .xq 与延伸问句同字号，
+   补上的背景(ink-2)另起一段；无小标题、无落款；关键词沿用回响的 .efx 琥珀高亮 */
+.xg-fill{font-family:var(--serif);font-size:16px;line-height:1.95;color:var(--ink-2)}
 /* 延伸条目可点开：AI 的 hint + 一扇同题讨论的门 */
 .think{cursor:pointer}
 .tframe{max-height:0;overflow:hidden;transition:max-height .3s ease}
 .tframe-in{padding-top:12px;font-size:14.5px;line-height:1.9;color:var(--ink-2)}
-.think.open .tframe{max-height:380px}
+.think.open .tframe{max-height:440px} /* 补缺 fill 下多了一排去搜的门，上限随之放宽 */
 .door{display:block;width:fit-content;margin-top:14px;padding-bottom:4px;
   font-family:var(--serif);font-size:15px;color:var(--ink);
   border-bottom:1px solid var(--ink);transition:border-bottom-width .12s,padding-bottom .12s}
 .door:hover{border-bottom-width:2px;padding-bottom:3px}
+/* 通往讨论的门走暖金高亮（2026-07-17 用户定稿，与回响块"去讨论"同色），hover 转墨 */
+.door--topic{color:var(--amber);border-bottom-color:var(--amber);transition:color .18s,border-color .18s,border-bottom-width .12s,padding-bottom .12s}
+.door--topic:hover{color:var(--ink);border-bottom-color:var(--ink)}
+/* 补缺·去搜：fill 下一排通往抖音搜索的胶囊按钮，复用合集脉络溯源 .src 的形制
+   （圆角矩形+左圆徽，hover 同款转琥珀）；圆徽装中文"搜"须走 sans（mono 不装中文红线） */
+.xsearch{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:16px}
+.xsearch-lead{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--ink);margin-right:2px}
+.xsearch .src-no{font:600 10px var(--sans)}
 
 /* ---------- 解析等待页：管线步骤沿用脉络的点线语言，非交互 ----------
    进行中的墨点呼吸用墨色不用暖金（暖金只属于回响）。 */
@@ -151,10 +189,18 @@
 .pnode .plabel{font-family:var(--sans);font-size:16px;line-height:28px;color:var(--ink-3);transition:color .18s}
 .pnode.done .plabel,.pnode.now .plabel{color:var(--ink)}
 .pnode .pstate{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-left:10px}
+.pwander{margin-top:22px;font-family:var(--sans);font-size:13px}
+.kfrom{color:var(--ink);border-bottom:1px solid var(--ink-3);transition:border-color .18s}
+.kfrom:hover{border-bottom-color:var(--ink)}
+/* 同款下划线动作用在 <button>（失败原地重试等）：抹掉按钮默认外观 */
+button.kfrom{background:none;border:0;border-bottom:1px solid var(--ink-3);padding:0;
+  font:inherit;color:var(--ink);cursor:pointer}
+button.kfrom:disabled{opacity:.55;cursor:default}
 /* 失败：素色板（同 .xpanel 的"真实物件才成面"条款），不加边框阴影 */
 .perr{margin-top:34px;background:var(--bg-soft);padding:30px 34px;animation:xfade .24s ease}
 .perr .pt{font-family:var(--serif);font-size:18px;line-height:1.8;color:var(--ink)}
 .perr .pd{margin-top:8px;font-size:14.5px;line-height:1.9;color:var(--ink-2)}
+.perr .pd--why{color:var(--no)}
 
 /* ---------- 列表行（视频/合集）：表格式，hover 整行洗色 ---------- */
 .vrow{display:grid;grid-template-columns:48px minmax(0,1fr) auto;column-gap:16px;align-items:baseline;
@@ -190,6 +236,14 @@
 .pill.c{color:var(--no)}
 .note{margin-top:14px;font-size:15px;line-height:1.9;color:var(--ink)}
 .note .em{background:linear-gradient(180deg,transparent 58%,var(--amber-wash) 58%)}
+/* 知识点要点：直接复用脉络的对齐轴（.spine/.node，可展开），不再另起一套。
+   仅微调：紧跟在 kp-q/stance 之后，收掉 spine 顶部一点空隙。 */
+.kp-body .spine{margin-top:6px}
+/* 溯源上角标：溯源列表 .src-no 的缩小版（实心浅底＋深墨数字），抬到上标位。
+   纯标识不可点——用中性色而非琥珀（=回响金/可交互色），与下方 ①②③ 同形好映射。 */
+.kp-ref{display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;margin-left:3px;border-radius:50%;background:var(--bg-soft);
+  color:var(--ink-2);font:700 9px/1 var(--mono);vertical-align:.42em;font-variant-numeric:tabular-nums}
 .srcs{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
 .src{display:inline-flex;align-items:center;gap:7px;max-width:100%;
   padding:4px 11px 4px 4px;border:1px solid var(--rule);border-radius:999px;
@@ -203,6 +257,165 @@
 .src-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
 .src-ts{flex:none;font:11px var(--mono);color:var(--ink-3);font-style:normal;font-variant-numeric:tabular-nums}
 
+/* ---------- 同题空间（讨论区 P0，/topic）：方案 A·左轨墨点流 ----------
+   每条想法是脉络上的一个点：左轨发丝线 + 实心墨点成"面"，逐帖不套盒（v3.2 红线）。
+   回响线头部=放大的划线原文（全页唯一暖金物件，.techo）；
+   最新/热门是小拨杆（左置降级）；composer 是脉络末端的空心墨点，聚焦点实。
+   帖子正文 16px 宋体；同感/回应行走黑体+表格数字（mono 不装中文）。 */
+/* 划线原文放大：引文抬到章句级字号，关系词行随之加半档 */
+.techo{margin-top:18px;padding-left:20px}
+.techo .er{font-size:13.5px}
+.techo .eq{margin-top:10px;font-family:var(--serif);font-size:21px;line-height:1.85}
+.techo .ef{margin-top:10px;font-family:var(--serif);font-size:18px;line-height:1.85;color:var(--ink)}
+/* 小拨杆：当前项实心墨点+墨色，未选空心+灰。次要控件，不抢锚定 */
+/* ---------- 方案4：脉络从问题处起笔 ----------
+   头部锚定并入左轨栅格（16px 槽 + 16px 隙，与帖流同轴），空心起点环挂在
+   问题/回响块旁；发丝线改为分段绘制（qrow/tnav/tstream 各管一段，行行相接），
+   有帖才画线（.haslines），空题只留孤环。 */
+.tflow{position:relative}
+.qrow{position:relative;display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:16px;
+  padding:6px 0 14px}
+.qrow .display{margin:0}
+.qrow .techo{margin-top:0}
+.torigin{width:10px;height:10px;border-radius:50%;box-sizing:border-box;justify-self:center;
+  margin-top:19px;background:var(--bg);border:1.5px solid var(--ink);position:relative;z-index:1}
+.qrow:has(.techo) .torigin{margin-top:5px}
+.tflow.haslines .qrow::after{content:"";position:absolute;left:7.5px;top:27px;bottom:0;
+  width:1px;background:var(--rule)}
+.tflow .tempty{margin-left:32px}
+
+.tnav{position:relative;display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:16px;
+  padding:24px 0 2px}
+.tflow.haslines .tnav::before{content:"";position:absolute;left:7.5px;top:0;bottom:0;
+  width:1px;background:var(--rule)}
+.tnavBtns{display:flex;gap:28px}
+.tnavBtn{display:inline-flex;align-items:center;gap:8px;background:none;border:0;padding:0;
+  cursor:pointer;font-family:var(--sans);font-size:13px;letter-spacing:.06em;
+  color:var(--ink-3);transition:color .18s}
+.tnavBtn .tpip{width:7px;height:7px;border-radius:50%;border:1px solid currentColor;
+  background:transparent;transition:background .18s,border-color .18s}
+.tnavBtn:hover{color:var(--ink)}
+.tnavBtn.on{color:var(--ink);font-weight:500}
+.tnavBtn.on .tpip{background:var(--ink);border-color:var(--ink)}
+.tstream{position:relative;margin-top:0;animation:xfade .24s ease}
+@media (prefers-reduced-motion:reduce){.tstream{animation:none}}
+.tstream::before{content:"";position:absolute;left:7.5px;top:0;bottom:30px;width:1px;background:var(--rule)}
+/* 门槛锁着（无 composer）：线在最后一个墨点下断掉——线还没画完 */
+.tstream.nofin::before{bottom:16px}
+.tpost{display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:16px;padding:18px 0}
+.tpdot{width:8px;height:8px;border-radius:50%;background:var(--ink);margin-top:7px;
+  justify-self:center;position:relative;z-index:1}
+/* 墨点随同感沉淀：≥7 沉、≥4 中、≥1 常规、0 轻（margin-top 补偿保持光学居中） */
+.tpdot.d3{width:13px;height:13px;margin-top:5px}
+.tpdot.d2{width:10px;height:10px;margin-top:6px}
+.tpdot.d0{width:7px;height:7px;margin-top:8px;background:var(--ink-2)}
+.tpdot.hollow{background:var(--bg);border:1px solid var(--ink-3);
+  transition:background .18s,border-color .18s}
+.tpwho{display:flex;align-items:baseline;gap:10px;font-family:var(--sans);
+  font-variant-numeric:tabular-nums}
+.tpname{font-size:13px;font-weight:500;color:var(--ink-2)}
+/* 足迹（轻量等级）：名字旁一句"看过 N 条"，资格可见但不抢戏 */
+.tpseen{font-size:11.5px;color:var(--ink-3)}
+.tpseen::after{content:" ·";color:var(--rule)}
+.tptime{font-size:12px;color:var(--ink-3)}
+.tptext{margin-top:7px;font-family:var(--serif);font-size:16px;line-height:1.9;color:var(--ink)}
+/* quoteRef（方案2）：想法顶着一句原文，微信读书"想法带划线"式；可点跳回解析页。
+   素色发丝边——暖金仍只属于回响。 */
+.pquote{display:block;margin:9px 0 0;padding:3px 0 3px 14px;border-left:2px solid var(--rule);
+  text-decoration:none;transition:border-color .18s}
+.pquote .pqt{display:block;font-family:var(--serif);font-size:13.5px;line-height:1.8;color:var(--ink-2)}
+.pquote .pqs{display:block;margin-top:5px;font-family:var(--sans);font-size:11px;color:var(--ink-3);
+  transition:color .18s}
+.pquote:hover{border-left-color:var(--ink-3)}
+.pquote:hover .pqs{color:var(--ink-2)}
+.tpacts{margin-top:11px;display:flex;gap:24px;font-family:var(--sans);font-size:12.5px;
+  color:var(--ink-3);font-variant-numeric:tabular-nums}
+.tpacts button{display:inline-flex;align-items:center;gap:7px;background:none;border:0;padding:0;
+  font:inherit;color:inherit;cursor:pointer;transition:color .18s}
+.tpacts button:hover{color:var(--ink)}
+/* 已同感高亮走暖金（2026-07-17 用户定稿：状态要一眼可见，覆盖"暖金只给回响"红线） */
+.tpacts button.on,.tpacts button.on:hover{color:var(--amber)}
+.tpacts .apip{width:6px;height:6px;border-radius:50%;border:1px solid currentColor;
+  transition:background .18s}
+.tpacts button.on .apip{background:currentColor}
+/* 删除：常态隐入灰，hover/待确认转警示色；二击确认不弹窗 */
+.tpacts .tdel:hover,.tpacts .tdel.arm{color:var(--no)}
+/* 抖音式：点谁的卡片就是回复谁——卡片空白处可点，光标给出暗示 */
+.tpbody{cursor:pointer}
+.treplies{margin-top:12px;border-left:1px solid var(--rule);padding-left:18px}
+.treply{padding:8px 0;cursor:pointer}
+.treply .tpname{font-size:12.5px}
+.treply .tptext{font-size:15px;color:var(--ink-2)}
+.treply .tpacts{margin-top:8px;gap:20px;font-size:12px}
+/* 回复输入行：主 composer 的缩小版，收在回应区末尾。
+   rcomposeCol 竖着叠（引文条/输入行/引原文面板），rcomposeRow 是原来那条横排。 */
+.rcomposeCol{display:flex;flex-direction:column;gap:8px;padding:10px 0 2px}
+.rcomposeRow{display:flex;gap:14px;align-items:baseline}
+.rcomposeRow input{flex:1;min-width:0;background:none;border:0;border-bottom:1px solid var(--rule);
+  padding:2px 2px 6px;font-family:var(--serif);font-size:14.5px;color:var(--ink);outline:none;
+  transition:border-color .18s}
+/* 占位的"回复 某某…"与预填的"回复 某某："同为墨色——用户两轮反馈：深浅不一像 bug */
+.rcomposeRow input::placeholder{color:var(--ink)}
+.rcomposeRow input:focus{border-bottom-color:var(--ink)}
+.rcomposeRow .tsend{font-size:13.5px}
+.rcomposeRow .tquote{font-size:12px}
+.rcomposeCol .cquote{padding-left:0;border-left-width:1px}
+.tempty{padding:20px 0 0;font-size:14.5px;color:var(--ink-3)}
+/* composer 行：脉络末端的空点，聚焦点实——"你的想法是下一个点" */
+.tcrow{padding-top:22px}
+.tcrow .tpdot{margin-top:9px}
+.tcrow:focus-within .tpdot.hollow{background:var(--ink);border-color:var(--ink)}
+.tcomposeCol{display:flex;flex-direction:column;gap:10px;min-width:0}
+/* composer 引文条：已选中的原文挂在输入行上方，✕ 可去掉 */
+.cquote{display:flex;align-items:flex-start;gap:10px;padding:2px 0 2px 14px;
+  border-left:2px solid var(--rule)}
+.cquote .cqt{flex:1;min-width:0;font-family:var(--serif);font-size:13px;line-height:1.75;color:var(--ink-2)}
+.cquote .cqs{margin-left:8px;font-family:var(--sans);font-size:11.5px;color:var(--ink-3)}
+.cqx{flex:none;background:none;border:0;padding:0 2px;cursor:pointer;
+  font-family:var(--sans);font-size:12px;color:var(--ink-3);transition:color .18s}
+.cqx:hover{color:var(--no)}
+.tquote{flex:none;background:none;border:0;padding:0 0 4px;cursor:pointer;
+  font-family:var(--sans);font-size:12.5px;color:var(--ink-3);transition:color .18s}
+.tquote:hover{color:var(--ink)}
+.tquote.on{color:var(--amber)}
+/* 引原文选择器：列出本视频脉络，选一句带进想法 */
+.qpick{border:1px solid var(--rule);background:var(--bg-soft);padding:4px 0;
+  max-height:300px;overflow-y:auto}
+.qpickItem{display:grid;grid-template-columns:26px minmax(0,1fr);gap:2px 10px;width:100%;
+  text-align:left;background:none;border:0;padding:10px 14px;cursor:pointer;font-family:var(--sans)}
+.qpickItem:hover{background:var(--bg)}
+.qpickItem .qpi{grid-row:1/3;font-family:var(--mono);font-size:10px;color:var(--ink-3);padding-top:3px}
+.qpickItem .qpl{font-size:13px;font-weight:500;color:var(--ink)}
+.qpickItem.on .qpl{color:var(--amber)}
+.qpickItem .qpt{font-size:12px;line-height:1.7;color:var(--ink-2);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* 合集题：引原文先选集——集名列表复用 qpick 容器，样式比节点项更轻 */
+.qpickVideo{display:block;width:100%;text-align:left;background:none;border:0;
+  padding:11px 14px;cursor:pointer;font-family:var(--serif);font-size:14px;color:var(--ink);
+  border-bottom:1px solid var(--rule)}
+.qpickVideo:last-child{border-bottom:0}
+.qpickVideo:hover{background:var(--bg);color:var(--amber)}
+.qpickBack{display:block;width:100%;text-align:left;background:none;border:0;
+  border-bottom:1px solid var(--rule);padding:8px 14px;cursor:pointer;
+  font-family:var(--sans);font-size:12px;color:var(--ink-3)}
+.qpickBack:hover{color:var(--ink)}
+.tcompose{display:flex;gap:16px;align-items:baseline}
+.tcompose input{flex:1;min-width:0;background:none;border:0;border-bottom:1px solid var(--rule);
+  padding:2px 2px 8px;font-family:var(--serif);font-size:16px;color:var(--ink);outline:none;
+  transition:border-color .18s}
+.tcompose input::placeholder{color:var(--ink-2)}
+.tcompose input:focus{border-bottom-color:var(--ink)}
+.tsend{flex:none;background:none;border:0;padding:0 0 4px;font-family:var(--serif);font-size:15px;
+  color:var(--ink);border-bottom:1px solid var(--ink);cursor:pointer;
+  transition:border-bottom-width .12s,padding-bottom .12s}
+.tsend:hover:not(:disabled){border-bottom-width:2px;padding-bottom:3px}
+.tsend:disabled{color:var(--ink-3);border-bottom-color:var(--rule);cursor:default}
+.terr{margin-top:10px;font-size:12.5px;color:var(--no)}
+/* 门槛线（linux.do 的精神，点线的语法）：锁行 + 进度墨点 + 去大陆的门 */
+.lockline{margin-top:36px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;
+  font-family:var(--sans);font-size:14px;color:var(--ink-2)}
+.gdots{font-family:var(--mono);font-size:11px;color:var(--ink);letter-spacing:.2em}
+
 /* ---------- 集数索引（合集解析页，PRD §6.4.3）：目录式行，只是入口 ---------- */
 .toc{margin-top:28px;border-top:1px solid var(--rule)}
 .tocRow{display:grid;grid-template-columns:28px minmax(0,1fr) auto auto;column-gap:12px;align-items:baseline;
@@ -215,3 +428,12 @@
   white-space:nowrap;transition:color .18s}
 .tocRow:hover .t{color:var(--ink)}
 .tocRow .dur{font-family:var(--mono);font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;padding-right:8px}
+/* 合集页集数索引：行尾外挂原视频直跳（↗ 不能嵌进整行 Link，独立成兄弟锚点）。
+   边框移到包裹层，行主体保持原 hover；解析等待页仍直接用 .tocRow，不受影响 */
+.tocLine{display:flex;align-items:stretch;border-bottom:1px solid var(--rule)}
+.tocLine .tocRow{flex:1;min-width:0;border-bottom:none}
+.tocSrc{display:flex;align-items:center;padding:0 2px 0 14px;
+  font-family:var(--mono);font-size:12px;color:var(--ink-3);
+  text-decoration:none;transition:color .18s}
+.tocSrc:hover{color:var(--ink)}
+.tocSrc:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}

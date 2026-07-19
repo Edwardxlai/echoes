@@ -27,6 +27,18 @@ yarn-error.log*
 eval/.tmp/
 .tmp/
 
+# runtime data & one-off outputs
+web/echoes.db
+web/rerun-expansion-result.json
+tmp/
+
+# test artifacts
+web/test-results/
+web/playwright-report/
+
+# junk (path-bug artifact)
+web/undefined/
+
 # misc
 .DS_Store
 *.pem

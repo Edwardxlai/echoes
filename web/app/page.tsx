@@ -1,18 +1,21 @@
 import { CATEGORY_LIST, COLLECTIONS } from "@/lib/data";
 import { WORLD_SCENE } from "@/lib/map-config";
 import type { WorldRegionId } from "@/lib/map-scene/schema";
-import { hasRealMapContent, realWorldSummary } from "@/lib/server/real-data";
+import { hasRealMapContent, realUnknownSeaSummary, realWorldSummary } from "@/lib/server/real-data";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
 import { WorldMapStage, type WorldMapItem } from "@/components/map/WorldMapStage";
 import { HeroInput } from "@/components/map/HeroInput";
 
 export const dynamic = "force-dynamic";
 
+const WORLD_REGION_CATEGORY_IDS = new Set(["eco", "his", "tech"]);
+
 export default function WorldMapPage() {
   const itemByEntity = new Map(WORLD_SCENE.items.map((item) => [item.entityId, item]));
-  // 有真实解析内容时，三大类计数换成真实数据（种子数据让位，详情页仍可直链）
+  // 有真实解析内容时，大类计数换成真实数据（种子数据让位，详情页仍可直链）
   const summary = hasRealMapContent() ? realWorldSummary() : null;
   const items: WorldMapItem[] = CATEGORY_LIST.flatMap((category) => {
+    if (!WORLD_REGION_CATEGORY_IDS.has(category.id)) return [];
     const mapItem = itemByEntity.get(category.id);
     if (!mapItem) return [];
 
@@ -38,13 +41,27 @@ export default function WorldMapPage() {
       },
     ];
   });
+  const unknownMapItem = itemByEntity.get("unknown");
+  const unknown = realUnknownSeaSummary();
+  if (unknownMapItem) {
+    items.push({
+      id: unknownMapItem.id as WorldRegionId,
+      title: "未知海域",
+      meta: `${unknown.videoCount} 条待定界内容${unknown.echoCount > 0 ? ` · ${unknown.echoCount} 次回响` : ""}`,
+      desc: "越过经济、历史与科技的既有疆界，查看暂时停泊在这里的其他内容。",
+      route: unknownMapItem.route,
+      routeLabel: "进入未知海域",
+      echo: unknown.echoCount > 0,
+      accessibleLabel: `未知海域，${unknown.videoCount} 条待定界内容，直接进入群岛`,
+    });
+  }
 
   return (
     <main className="mapPage mapPage--world">
       <div className="mapPage__grain" aria-hidden="true" />
       <h1 className="srOnly">回响世界区域</h1>
 
-      <header className="worldMasthead mapShell" aria-label="回响与内容解析">
+      <header className="worldMasthead mapShell" aria-label="知音与内容解析">
         <BrandHomeLink className="worldMasthead__brand" />
         <div className="worldMasthead__input">
           <HeroInput compact />

@@ -1,17 +1,17 @@
 "use client";
 
 import { useId, useState } from "react";
-import { useRouter } from "next/navigation";
+import { submitParse } from "@/lib/client/parsingTracker";
 
 /* 统一输入口（PRD §6.4.1）：单条视频 / 现成合集 / 多条独立链接。
    识别在服务端做（短链展开后才知道是不是合集）：POST /api/parse 建资产并
-   后台跑管线，这里只负责提交和跳到对应的解析等待页。 */
+   后台跑管线。提交后不跳页——入列跟踪即广播，右下角角标自动弹开
+   亮出新任务行；解析等待页降级为详情页，从角标任务行点进。 */
 
-type InputState = "idle" | "submitting" | "error";
+type InputState = "idle" | "submitting" | "done" | "error";
 
 export function HeroInput({ compact = false }: { compact?: boolean }) {
   const inputId = useId();
-  const router = useRouter();
   const [value, setValue] = useState("");
   const [state, setState] = useState<InputState>("idle");
   const [error, setError] = useState("");
@@ -25,18 +25,9 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
     }
     setState("submitting");
     try {
-      const res = await fetch("/api/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: value }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `接入失败（${res.status}）`);
-      router.push(
-        data.kind === "single"
-          ? `/parsing/${data.assetId}`
-          : `/parsing/group/${data.groupId}`
-      );
+      await submitParse(value);
+      setValue("");
+      setState("done");
     } catch (e) {
       setState("error");
       setError((e as Error).message || "接入失败，稍后再试");
@@ -83,6 +74,9 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
         {state === "error" && <span className="mapInputMeta__error">{error}</span>}
         {state === "submitting" && (
           <span className="mapInputMeta__success">正在识别链接…合集需要十几秒枚举</span>
+        )}
+        {state === "done" && (
+          <span className="mapInputMeta__success">已接入，右下角可查看进度</span>
         )}
         {state === "idle" && !compact && (
           <>

@@ -1,6 +1,17 @@
 import Link from "next/link";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
 
+/** 区域/群岛地图左上导航组：品牌标（回世界页）+ 分隔线 + 返回上一级。 */
+export function MapAtlasNav({ href, label }: { href: string; label: string }) {
+  return (
+    <div className="atlasNav">
+      <BrandHomeLink className="atlasNav__brand" />
+      <span className="atlasNav__divider" aria-hidden="true" />
+      <MapReturnControl href={href} label={label} />
+    </div>
+  );
+}
+
 export function MapReturnControl({
   href,
   label,
@@ -20,54 +31,5 @@ export function MapReturnControl({
         <strong>{label}</strong>
       </span>
     </Link>
-  );
-}
-
-export function MapTopbar({
-  backHref,
-  backLabel,
-  status,
-}: {
-  backHref?: string;
-  backLabel?: string;
-  status: string;
-}) {
-  return (
-    <nav className="mapTopbar" aria-label="地图导航">
-      <BrandHomeLink className="mapTopbar__brand" showEdition />
-
-      {backHref ? (
-        <Link className="mapBacklink" href={backHref}>
-          <span aria-hidden="true">←</span>
-          {backLabel}
-        </Link>
-      ) : (
-        <span className="mapTopbar__line" aria-hidden="true" />
-      )}
-
-      <div className="mapTopbar__status">
-        <span className="mapTopbar__pulse" aria-hidden="true" />
-        {status}
-      </div>
-    </nav>
-  );
-}
-
-export function MapKicker({ index, children }: { index: string; children: React.ReactNode }) {
-  return (
-    <div className="mapKicker">
-      <span>{index}</span>
-      <i aria-hidden="true" />
-      <span>{children}</span>
-    </div>
-  );
-}
-
-export function MapStat({ value, label }: { value: string | number; label: string }) {
-  return (
-    <div className="mapStat">
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </div>
   );
 }

@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -59,10 +58,10 @@ export interface HotspotDef {
 
 interface MapStageProps {
   background: ReactNode;
+  /** Full-stage visual layer that must not inherit the fixed scene rectangle. */
+  stageBackground?: ReactNode;
   items: HotspotDef[];
   className?: string;
-  /** Changes the persistence namespace when the scene coordinate system changes. */
-  storageRevision?: string;
   /** Server-rendered home zoom before the viewport can be measured. */
   initialZoom?: number;
   /** Fixes the camera canvas to the supplied artwork ratio. */
@@ -113,14 +112,6 @@ interface PinchState {
   anchorSceneY: number;
 }
 
-interface StoredMapStageState {
-  version: 1;
-  camera: MapCameraState;
-  selected: string | null;
-  viewport?: ViewportSize;
-  scene?: ViewportSize;
-}
-
 interface StoredDiscoveryState {
   version: 1;
   discoveredIds: string[];
@@ -141,7 +132,10 @@ const BUTTON_ZOOM_STEP = 0.1;
 const KEYBOARD_PAN_STEP = 44;
 const DRAG_THRESHOLD = 7;
 const BASE_PAN_RATIO = 0.12;
-const STORAGE_PREFIX = "echoes:map-stage:";
+// Selecting a landmark is an explicit camera move: even landmarks authored near
+// a scene edge must be allowed to reach the viewport centre. Free dragging keeps
+// the tighter base envelope so users cannot accidentally lose the whole map.
+const FOCUS_PAN_RATIO = 0.5;
 const DISCOVERY_STORAGE_PREFIX = "echoes:map-discovery:";
 const CAMERA_EPSILON = 0.001;
 const DEFAULT_CAMERA: MapCameraState = { x: 0, y: 0, zoom: BASE_ZOOM };
@@ -179,6 +173,7 @@ function constrainCamera(
   camera: MapCameraState,
   viewport: ViewportSize,
   scene: ViewportSize = viewport,
+  panRatio = BASE_PAN_RATIO,
 ): MapCameraState {
   const zoom = clamp(isFiniteNumber(camera.zoom) ? camera.zoom : BASE_ZOOM, MIN_ZOOM, MAX_ZOOM);
   const x = isFiniteNumber(camera.x) ? camera.x : 0;
@@ -194,9 +189,9 @@ function constrainCamera(
   // own background can remain visible at the extreme edge; zoom adds the usual
   // half-overflow allowance on top of it.
   const maxX =
-    Math.max(0, (scene.width * zoom - viewport.width) / 2) + viewport.width * BASE_PAN_RATIO;
+    Math.max(0, (scene.width * zoom - viewport.width) / 2) + viewport.width * panRatio;
   const maxY =
-    Math.max(0, (scene.height * zoom - viewport.height) / 2) + viewport.height * BASE_PAN_RATIO;
+    Math.max(0, (scene.height * zoom - viewport.height) / 2) + viewport.height * panRatio;
 
   return {
     x: clamp(x, -maxX, maxX),
@@ -230,98 +225,11 @@ function getFitZoom(
   return clamp(requested * fitPadding, MIN_ZOOM, MAX_ZOOM);
 }
 
-function cameraFromStoredValue(value: unknown): MapCameraState | null {
-  if (!value || typeof value !== "object") return null;
-
-  const camera = value as Partial<MapCameraState>;
-  if (!isFiniteNumber(camera.x) || !isFiniteNumber(camera.y) || !isFiniteNumber(camera.zoom)) {
-    return null;
-  }
-
-  return {
-    x: camera.x,
-    y: camera.y,
-    zoom: clamp(camera.zoom, MIN_ZOOM, MAX_ZOOM),
-  };
-}
-
-function readStoredState(
-  storageKey: string,
-  validIds: Set<string>,
-  viewport: ViewportSize,
-  scene: ViewportSize,
-): Pick<StoredMapStageState, "camera" | "selected"> | null {
-  try {
-    const raw = window.sessionStorage.getItem(storageKey);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as Partial<StoredMapStageState>;
-    if (!parsed || parsed.version !== 1) return null;
-
-    let camera = cameraFromStoredValue(parsed.camera);
-    if (!camera) return null;
-
-    // Preserve the same relative pan if Back is used after the viewport resized.
-    const storedBasis = parsed.scene ?? parsed.viewport;
-    const nextBasis = scene.width > 0 && scene.height > 0 ? scene : viewport;
-    if (
-      storedBasis &&
-      isFiniteNumber(storedBasis.width) &&
-      isFiniteNumber(storedBasis.height) &&
-      storedBasis.width > 0 &&
-      storedBasis.height > 0 &&
-      nextBasis.width > 0 &&
-      nextBasis.height > 0
-    ) {
-      camera = {
-        ...camera,
-        x: camera.x * (nextBasis.width / storedBasis.width),
-        y: camera.y * (nextBasis.height / storedBasis.height),
-      };
-    }
-
-    camera = constrainCamera(camera, viewport, scene);
-
-    const selected =
-      typeof parsed.selected === "string" && validIds.has(parsed.selected)
-        ? parsed.selected
-        : null;
-
-    return { camera, selected };
-  } catch {
-    // Storage can be unavailable in privacy modes, and stale JSON should never
-    // make the map unusable.
-    return null;
-  }
-}
-
-function writeStoredState(
-  storageKey: string,
-  camera: MapCameraState,
-  selected: string | null,
-  viewport: ViewportSize,
-  scene: ViewportSize,
-) {
-  try {
-    const state: StoredMapStageState = {
-      version: 1,
-      camera,
-      selected,
-      viewport,
-      scene,
-    };
-    window.sessionStorage.setItem(storageKey, JSON.stringify(state));
-  } catch {
-    // Persistence is an enhancement; interaction must continue if storage is
-    // blocked or its quota is exhausted.
-  }
-}
-
 export function MapStage({
   background,
+  stageBackground,
   items,
   className,
-  storageRevision,
   initialZoom,
   sceneAspectRatio,
   fitMode = "contain",
@@ -332,13 +240,10 @@ export function MapStage({
 }: MapStageProps) {
   const desktopFitPadding = fitPadding?.desktop ?? 1;
   const mobileFitPadding = fitPadding?.mobile ?? desktopFitPadding;
-  const pathname = usePathname();
-  const storageKey = `${STORAGE_PREFIX}${pathname}${storageRevision ? `:${storageRevision}` : ""}`;
   const discoveryStorageKey = discoveryNamespace
     ? `${DISCOVERY_STORAGE_PREFIX}${discoveryNamespace}:v1`
     : null;
   const itemSignature = items.map((item) => item.id).join("\u001f");
-  const validIds = useMemo(() => new Set(items.map((item) => item.id)), [items]);
   const itemById = useMemo(
     () => new Map(items.map((item) => [item.id, item] as const)),
     [items],
@@ -352,7 +257,6 @@ export function MapStage({
   const [hovered, setHovered] = useState<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [restoredStorageKey, setRestoredStorageKey] = useState<string | null>(null);
   const [discoveryState, setDiscoveryState] = useState<{
     storageKey: string | null;
     discoveredIds: string[];
@@ -480,9 +384,17 @@ export function MapStage({
   }, [discoveryStorageKey, itemSignature]);
 
   const commitCamera = useCallback(
-    (update: MapCameraState | ((current: MapCameraState) => MapCameraState)) => {
+    (
+      update: MapCameraState | ((current: MapCameraState) => MapCameraState),
+      panRatio = BASE_PAN_RATIO,
+    ) => {
       const proposed = typeof update === "function" ? update(cameraRef.current) : update;
-      const next = constrainCamera(proposed, viewportSizeRef.current, sceneSizeRef.current);
+      const next = constrainCamera(
+        proposed,
+        viewportSizeRef.current,
+        sceneSizeRef.current,
+        panRatio,
+      );
       if (camerasMatch(cameraRef.current, next)) return;
 
       cameraRef.current = next;
@@ -496,18 +408,9 @@ export function MapStage({
     setSelected(id);
   }, []);
 
-  const persistSnapshot = useCallback(() => {
-    writeStoredState(
-      storageKey,
-      cameraRef.current,
-      selectedRef.current,
-      viewportSizeRef.current,
-      sceneSizeRef.current,
-    );
-  }, [storageKey]);
-
-  // Restore only after hydration. Tracking the restored key separately avoids
-  // the initial default state overwriting the saved state in a sibling effect.
+  // Every mount is treated as a fresh entry into the region: always open on
+  // the computed home/fit view rather than whatever pan/zoom was left over
+  // from an earlier visit in the same session.
   useEffect(() => {
     const rect = viewportRef.current?.getBoundingClientRect();
     if (rect && rect.width > 0 && rect.height > 0) {
@@ -518,14 +421,7 @@ export function MapStage({
       sceneSizeRef.current = { width: sceneElement.offsetWidth, height: sceneElement.offsetHeight };
     }
 
-    const restored = readStoredState(
-      storageKey,
-      validIds,
-      viewportSizeRef.current,
-      sceneSizeRef.current,
-    );
-    // First visit opens on the whole continent, like the prototype hero shot.
-    const nextCamera = restored?.camera ?? {
+    const nextCamera = {
       x: 0,
       y: 0,
       zoom: getFitZoom(
@@ -535,22 +431,17 @@ export function MapStage({
         viewportSizeRef.current.width <= 560 ? mobileFitPadding : desktopFitPadding,
       ),
     };
-    const nextSelected = restored?.selected ?? null;
 
     cameraRef.current = nextCamera;
-    selectedRef.current = nextSelected;
+    selectedRef.current = null;
     setCamera(nextCamera);
-    setSelected(nextSelected);
+    setSelected(null);
     setHovered(null);
     setFocused(null);
-    setRestoredStorageKey(storageKey);
 
     // Fixed-ratio scenes can receive their final responsive width one frame
     // after hydration. Re-measure cover views so mobile does not open letterboxed.
-    if (
-      !restored &&
-      (fitMode === "cover" || desktopFitPadding !== 1 || mobileFitPadding !== 1)
-    ) {
+    if (fitMode === "cover" || desktopFitPadding !== 1 || mobileFitPadding !== 1) {
       const frame = window.requestAnimationFrame(() => {
         const viewportRect = viewportRef.current?.getBoundingClientRect();
         const sceneNode = cameraElementRef.current;
@@ -582,7 +473,7 @@ export function MapStage({
 
       return () => window.cancelAnimationFrame(frame);
     }
-  }, [desktopFitPadding, fitMode, itemSignature, mobileFitPadding, storageKey, validIds]);
+  }, [desktopFitPadding, fitMode, itemSignature, mobileFitPadding]);
 
   // Keep pan proportional on responsive resizes, then enforce the no-empty-edge
   // bounds at the new viewport size.
@@ -632,26 +523,6 @@ export function MapStage({
     observer.observe(sceneElement);
     return () => observer.disconnect();
   }, []);
-
-  // Session storage is synchronous, so coalesce high-frequency drag and wheel
-  // updates. pagehide and Link.onNavigate below also force an immediate save.
-  useEffect(() => {
-    if (restoredStorageKey !== storageKey) return;
-
-    const timeout = window.setTimeout(persistSnapshot, 80);
-    return () => window.clearTimeout(timeout);
-  }, [camera, persistSnapshot, restoredStorageKey, selected, storageKey]);
-
-  useEffect(() => {
-    if (restoredStorageKey !== storageKey) return;
-
-    const handlePageHide = () => persistSnapshot();
-    window.addEventListener("pagehide", handlePageHide);
-    return () => {
-      window.removeEventListener("pagehide", handlePageHide);
-      persistSnapshot();
-    };
-  }, [persistSnapshot, restoredStorageKey, storageKey]);
 
   useEffect(() => {
     const clearGesture = () => {
@@ -735,7 +606,7 @@ export function MapStage({
           x: (0.5 - focusX) * scene.width * zoom,
           y: (0.5 - focusY) * scene.height * zoom,
         };
-      });
+      }, FOCUS_PAN_RATIO);
     },
     [commitCamera],
   );
@@ -1066,6 +937,11 @@ export function MapStage({
     >
       <MapDiscoveryContext.Provider value={discoveryValue}>
       <MapActiveContext.Provider value={visualActiveId}>
+        {stageBackground && (
+          <div className="mapStage__stageBackground" aria-hidden="true">
+            {stageBackground}
+          </div>
+        )}
         <div
           ref={viewportRef}
           className="mapStage__viewport"
@@ -1264,8 +1140,6 @@ export function MapStage({
                 ref={primaryActionRef}
                 className="infoPanel__enter"
                 href={active.route}
-                onClick={persistSnapshot}
-                onNavigate={persistSnapshot}
               >
                 <span>{active.routeLabel ?? "进入"}</span>
                 <span aria-hidden="true">→</span>
@@ -1274,8 +1148,6 @@ export function MapStage({
                 <Link
                   className="infoPanel__enter infoPanel__enter--secondary"
                   href={active.secondaryRoute}
-                  onClick={persistSnapshot}
-                  onNavigate={persistSnapshot}
                 >
                   <span>{active.secondaryLabel ?? "看全貌"}</span>
                   <span aria-hidden="true">→</span>

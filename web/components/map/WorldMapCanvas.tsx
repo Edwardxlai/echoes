@@ -7,6 +7,7 @@ import { easing } from "maath";
 import {
   AdditiveBlending,
   ClampToEdgeWrapping,
+  Color,
   LinearFilter,
   Mesh,
   MeshBasicMaterial,
@@ -16,10 +17,16 @@ import {
   SRGBColorSpace,
   ShaderMaterial,
   Texture,
+  Vector2,
 } from "three";
 import { WORLD_MANIFEST } from "@/lib/map-scene/manifests/world";
-import type { WorldRegionId, WorldRegionManifest } from "@/lib/map-scene/schema";
+import type {
+  WorldExpansionIslandManifest,
+  WorldRegionId,
+  WorldRegionManifest,
+} from "@/lib/map-scene/schema";
 import { useWorldMapStore } from "./world-map-store";
+import { WATER_FRAGMENT_SHADER, WATER_VERTEX_SHADER } from "./water-shader";
 
 export interface WorldMapCanvasItem {
   id: WorldRegionId;
@@ -30,8 +37,13 @@ export interface WorldMapCanvasItem {
 
 interface WorldMapCanvasProps {
   items: WorldMapCanvasItem[];
+  regionFogStates: Partial<Record<WorldRegionId, WorldRegionFogState>>;
   onRegionActivate: (id: WorldRegionId) => void;
 }
+
+export type WorldRegionFogState = "hidden" | "locked" | "revealing" | "unlocked";
+
+type WorldInteractiveRegion = Pick<WorldRegionManifest, "id" | "anchor" | "hitSize">;
 
 const [WORLD_WIDTH, WORLD_HEIGHT] = WORLD_MANIFEST.worldSize;
 
@@ -43,59 +55,6 @@ function prepareTexture(texture: Texture, repeat = false, srgb = true) {
   texture.wrapT = repeat ? RepeatWrapping : ClampToEdgeWrapping;
   texture.needsUpdate = true;
 }
-
-const WATER_VERTEX_SHADER = /* glsl */ `
-  varying vec2 vUv;
-  void main() {
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-const WATER_FRAGMENT_SHADER = /* glsl */ `
-  uniform sampler2D uBaseColor;
-  uniform sampler2D uNormal;
-  uniform sampler2D uRoughness;
-  uniform sampler2D uFlow;
-  uniform float uTime;
-  uniform float uMotion;
-  uniform float uNormalStrength;
-  varying vec2 vUv;
-
-  void main() {
-    float time = uTime * uMotion;
-
-    // Keep the watercolour crisp and pretty — only a very slow drift so it never
-    // looks frozen, and NO refraction warping (that muddied the artwork).
-    vec3 water = texture2D(uBaseColor, vUv * 16.0 + vec2(time * 0.0022, time * 0.0013)).rgb;
-
-    // Movement comes from light, not from distorting the texture: an animated
-    // surface normal drives a travelling sparkle.
-    vec2 nUvA = vUv * 22.0 + vec2(time * 0.012, time * 0.007);
-    vec2 nUvB = vec2(1.0 - vUv.x, vUv.y) * 28.0 + vec2(-time * 0.009, time * 0.013);
-    vec3 normal = normalize(mix(
-      texture2D(uNormal, nUvA).rgb * 2.0 - 1.0,
-      texture2D(uNormal, nUvB).rgb * 2.0 - 1.0,
-      0.5
-    ));
-    vec3 lightDir = normalize(vec3(-0.26, 0.4, 1.0));
-    float roughness = texture2D(uRoughness, nUvB * 0.8).r;
-    float glint = pow(max(dot(normal, lightDir), 0.0), 9.0) * (1.0 - roughness);
-
-    // Soft caustic light bands slowly drifting across the sea — the main, calm
-    // sense of a living surface.
-    float c1 = texture2D(uFlow, vUv * 4.0 + vec2(time * 0.006, time * 0.0022)).r;
-    float c2 = texture2D(uFlow, vUv * 6.5 + vec2(-time * 0.004, time * 0.005)).r;
-    float caustic = pow(max(c1 * c2, 0.0), 1.4);
-
-    vec3 paperSea = vec3(0.890, 0.949, 0.937);
-    vec3 color = mix(paperSea, water, 0.55);
-    color += glint * 0.10 * (0.6 + uNormalStrength);
-    color += caustic * 0.09;
-    color += (c1 - 0.5) * 0.045;
-    gl_FragColor = vec4(color, 1.0);
-  }
-`;
 
 function revealEase(elapsed: number, delay: number, duration: number) {
   const t = Math.min(1, Math.max(0, (elapsed - delay) / duration));
@@ -160,6 +119,7 @@ function WaterLayer({ reducedMotion }: { reducedMotion: boolean }) {
       uTime: { value: 0 },
       uMotion: { value: reducedMotion ? 0 : 1 },
       uNormalStrength: { value: size.width <= 560 ? 0.14 : 0.22 },
+      uUvScale: { value: new Vector2(1, 1) },
     }),
     [reducedMotion, size.width, textures],
   );
@@ -193,6 +153,7 @@ function TexturePlane({
   url,
   position,
   size = WORLD_MANIFEST.worldSize,
+  color = "#ffffff",
   opacity = 1,
   renderOrder = 1,
   introDelay,
@@ -201,6 +162,7 @@ function TexturePlane({
   url: string;
   position: [number, number, number];
   size?: [number, number];
+  color?: string;
   opacity?: number;
   renderOrder?: number;
   /** When set, the layer fades and rises into place shortly after mount. */
@@ -230,11 +192,237 @@ function TexturePlane({
       <meshBasicMaterial
         ref={materialRef}
         map={texture}
+        color={color}
         transparent
         opacity={hasIntro ? 0 : opacity}
         depthWrite={false}
       />
     </mesh>
+  );
+}
+
+const REGION_FOG_FRAGMENT_SHADER = /* glsl */ `
+  uniform sampler2D uHeight;
+  uniform sampler2D uMask;
+  uniform vec2 uRevealOrigin;
+  uniform vec3 uFogDark;
+  uniform vec3 uFogLight;
+  uniform vec3 uRimColor;
+  uniform float uProgress;
+  uniform float uAspect;
+  uniform float uTime;
+  uniform float uMotion;
+  varying vec2 vUv;
+
+  float maskAt(vec2 uv) {
+    return smoothstep(0.12, 0.88, texture2D(uMask, uv).r);
+  }
+
+  float blurredHeight(vec2 uv) {
+    vec2 spread = vec2(0.018, 0.018);
+    float height = texture2D(uHeight, uv).r * 0.20;
+    height += texture2D(uHeight, uv + vec2(spread.x, 0.0)).r * 0.10;
+    height += texture2D(uHeight, uv - vec2(spread.x, 0.0)).r * 0.10;
+    height += texture2D(uHeight, uv + vec2(0.0, spread.y)).r * 0.10;
+    height += texture2D(uHeight, uv - vec2(0.0, spread.y)).r * 0.10;
+    height += texture2D(uHeight, uv + spread).r * 0.10;
+    height += texture2D(uHeight, uv - spread).r * 0.10;
+    height += texture2D(uHeight, uv + vec2(spread.x, -spread.y)).r * 0.10;
+    height += texture2D(uHeight, uv + vec2(-spread.x, spread.y)).r * 0.10;
+    return height;
+  }
+
+  void main() {
+    float regionMask = maskAt(vUv);
+    if (regionMask < 0.002) discard;
+
+    float height = blurredHeight(vUv);
+    float relief = smoothstep(0.28, 0.88, height);
+    float paperGrain = sin(vUv.x * 71.0 + vUv.y * 29.0) *
+      sin(vUv.y * 83.0 - vUv.x * 17.0) * 0.008;
+    vec3 lockedColor = mix(uFogDark, uFogLight, 0.46 + relief * 0.32);
+    lockedColor += paperGrain;
+
+    vec2 edgeStep = vec2(0.0045, 0.0045);
+    float innerMask = min(
+      min(maskAt(vUv + vec2(edgeStep.x, 0.0)), maskAt(vUv - vec2(edgeStep.x, 0.0))),
+      min(maskAt(vUv + vec2(0.0, edgeStep.y)), maskAt(vUv - vec2(0.0, edgeStep.y)))
+    );
+    float coastOutline = clamp(regionMask - innerMask, 0.0, 1.0);
+    lockedColor = mix(lockedColor, uFogLight * 1.05, coastOutline * 0.42);
+
+    float progress = uProgress * uProgress * (3.0 - 2.0 * uProgress);
+    vec2 revealDelta = (vUv - uRevealOrigin) * vec2(uAspect, 1.0);
+    float revealNoise = (
+      sin(vUv.x * 37.0 + vUv.y * 21.0 + uTime * 0.34 * uMotion) +
+      sin(vUv.y * 43.0 - vUv.x * 19.0 - uTime * 0.25 * uMotion)
+    ) * 0.010;
+    float distanceFromOrigin = length(revealDelta) + revealNoise;
+    float revealRadius = mix(-0.08, 0.96, progress);
+    float revealed = 1.0 - smoothstep(revealRadius - 0.042, revealRadius + 0.042, distanceFromOrigin);
+    float hidden = regionMask * (1.0 - revealed);
+
+    float revealRim = 1.0 - smoothstep(0.0, 0.030, abs(distanceFromOrigin - revealRadius));
+    revealRim *= regionMask * step(0.01, uProgress) * (1.0 - step(0.995, uProgress));
+    vec3 finalColor = mix(lockedColor, uRimColor, revealRim * 0.82);
+    float alpha = clamp(hidden * 0.992 + revealRim * 0.32, 0.0, 1.0);
+
+    gl_FragColor = vec4(finalColor, alpha);
+  }
+`;
+
+function RegionFogPlane({
+  heightUrl,
+  maskUrl,
+  size,
+  state,
+  reducedMotion,
+}: {
+  heightUrl: string;
+  maskUrl: string;
+  size: [number, number];
+  state: WorldRegionFogState;
+  reducedMotion: boolean;
+}) {
+  const [heightTexture, maskTexture] = useTexture([heightUrl, maskUrl]);
+  const materialRef = useRef<ShaderMaterial>(null);
+  const revealStartedAt = useRef<number | null>(null);
+  useMemo(() => {
+    prepareTexture(heightTexture, false, false);
+    prepareTexture(maskTexture, false, false);
+  }, [heightTexture, maskTexture]);
+  const uniforms = useMemo(
+    () => ({
+      uHeight: { value: heightTexture },
+      uMask: { value: maskTexture },
+      uRevealOrigin: { value: new Vector2(0.5, 0.5) },
+      uFogDark: { value: new Color("#879393") },
+      uFogLight: { value: new Color("#c2c9c4") },
+      uRimColor: { value: new Color("#f4ead0") },
+      uProgress: { value: state === "unlocked" ? 1 : 0 },
+      uAspect: { value: size[0] / size[1] },
+      uTime: { value: 0 },
+      uMotion: { value: reducedMotion ? 0 : 1 },
+    }),
+    [heightTexture, maskTexture, reducedMotion, size, state],
+  );
+
+  useEffect(() => {
+    revealStartedAt.current = null;
+  }, [state]);
+
+  useFrame(({ clock }) => {
+    const material = materialRef.current;
+    if (!material) return;
+    material.uniforms.uTime.value = clock.elapsedTime;
+    material.uniforms.uMotion.value = reducedMotion ? 0 : 1;
+
+    if (state === "locked") {
+      material.uniforms.uProgress.value = 0;
+      return;
+    }
+    if (state === "unlocked" || reducedMotion) {
+      material.uniforms.uProgress.value = 1;
+      return;
+    }
+    if (state === "revealing") {
+      if (revealStartedAt.current === null) revealStartedAt.current = clock.elapsedTime;
+      material.uniforms.uProgress.value = revealEase(
+        clock.elapsedTime - revealStartedAt.current,
+        0,
+        1.35,
+      );
+    }
+  });
+
+  if (state === "hidden" || state === "unlocked") return null;
+
+  return (
+    <mesh position={[0, 0, 1.035]} renderOrder={7}>
+      <planeGeometry args={size} />
+      <shaderMaterial
+        ref={materialRef}
+        uniforms={uniforms}
+        vertexShader={WATER_VERTEX_SHADER}
+        fragmentShader={REGION_FOG_FRAGMENT_SHADER}
+        transparent
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+}
+
+function ExpansionIsland({
+  island,
+  state,
+  reducedMotion,
+}: {
+  island: WorldExpansionIslandManifest;
+  state: WorldRegionFogState;
+  reducedMotion: boolean;
+}) {
+  if (state === "hidden") return null;
+
+  if (island.assets.flatTerrain) {
+    return (
+      <group position={island.position}>
+        <TexturePlane
+          url={island.assets.flatTerrain}
+          position={[0, 0, 0.8]}
+          size={island.size}
+          renderOrder={5}
+          introDelay={0.14}
+          reducedMotion={reducedMotion}
+        />
+      </group>
+    );
+  }
+
+  return (
+    <group position={island.position}>
+      <TexturePlane
+        url={island.assets.coast.shallow}
+        position={[0, 0, 0.22]}
+        size={island.size}
+        opacity={0.88}
+        renderOrder={2}
+      />
+      <TexturePlane
+        url={island.assets.coast.wetContact}
+        position={[0, -0.08, 0.34]}
+        size={island.size}
+        opacity={0.78}
+        renderOrder={3}
+      />
+      <TexturePlane
+        url={island.assets.contactShadow}
+        position={[0, -0.25, 0.45]}
+        size={island.size}
+        opacity={0.58}
+        renderOrder={4}
+      />
+      <TexturePlane
+        url={island.assets.terrain}
+        position={[0, 0, 0.8]}
+        size={island.size}
+        renderOrder={5}
+      />
+      <TexturePlane
+        url={island.assets.coast.foam}
+        position={[0, 0, 1.01]}
+        size={island.size}
+        opacity={0.68}
+        renderOrder={6}
+      />
+      <RegionFogPlane
+        heightUrl={island.assets.height}
+        maskUrl={island.assets.mask}
+        size={island.size}
+        state={state}
+        reducedMotion={reducedMotion}
+      />
+    </group>
   );
 }
 
@@ -273,7 +461,7 @@ function RegionInteraction({
   item,
   onActivate,
 }: {
-  region: WorldRegionManifest;
+  region: WorldInteractiveRegion;
   item: WorldMapCanvasItem;
   onActivate: (id: WorldRegionId) => void;
 }) {
@@ -370,7 +558,7 @@ function RippleBurst({ reducedMotion }: { reducedMotion: boolean }) {
   );
 }
 
-function WorldScene({ items, onRegionActivate }: WorldMapCanvasProps) {
+function WorldScene({ items, regionFogStates, onRegionActivate }: WorldMapCanvasProps) {
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const reducedMotion = useReducedMotionPreference();
 
@@ -378,6 +566,14 @@ function WorldScene({ items, onRegionActivate }: WorldMapCanvasProps) {
     <>
       <color attach="background" args={["#e3f2ef"]} />
       <WaterLayer reducedMotion={reducedMotion} />
+      {WORLD_MANIFEST.expansionIslands.map((island) => (
+        <ExpansionIsland
+          key={island.id}
+          island={island}
+          state={regionFogStates[island.regionId] ?? (island.state === "hidden" ? "hidden" : "locked")}
+          reducedMotion={reducedMotion}
+        />
+      ))}
       <TexturePlane
         url={WORLD_MANIFEST.assets.coast.shallow}
         position={[0, 0, 0.22]}
@@ -428,6 +624,17 @@ function WorldScene({ items, onRegionActivate }: WorldMapCanvasProps) {
           <RegionInteraction
             key={`interaction-${region.id}`}
             region={region}
+            item={item}
+            onActivate={onRegionActivate}
+          />
+        ) : null;
+      })}
+      {WORLD_MANIFEST.expansionIslands.map((island) => {
+        const item = itemById.get(island.regionId);
+        return item && regionFogStates[island.regionId] === "unlocked" ? (
+          <RegionInteraction
+            key={`interaction-${island.regionId}`}
+            region={{ id: island.regionId, anchor: island.anchor, hitSize: island.hitSize }}
             item={item}
             onActivate={onRegionActivate}
           />
