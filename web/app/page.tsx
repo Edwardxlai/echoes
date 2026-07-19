@@ -4,6 +4,7 @@ import type { WorldRegionId } from "@/lib/map-scene/schema";
 import { hasRealMapContent, realUnknownSeaSummary, realWorldSummary } from "@/lib/server/real-data";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
 import { WorldMapStage, type WorldMapItem } from "@/components/map/WorldMapStage";
+import { WorldMapTip } from "@/components/map/WorldMapTip";
 import { HeroInput } from "@/components/map/HeroInput";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +71,7 @@ export default function WorldMapPage() {
 
       <section className="mapSceneSection mapSceneSection--world" aria-label="世界地图">
         <WorldMapStage items={items} />
+        <WorldMapTip />
       </section>
     </main>
   );

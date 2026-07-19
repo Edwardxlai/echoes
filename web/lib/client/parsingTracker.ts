@@ -50,10 +50,10 @@ export async function submitParse(input: string): Promise<{ kind: TrackedJobKind
     assetId?: string;
     groupId?: string;
   } | null;
-  if (!res.ok) throw new Error(data?.error || `接入失败（${res.status}）`);
+  if (!res.ok) throw new Error(data?.error || `解析失败（${res.status}）`);
   const kind: TrackedJobKind = data?.kind === "single" ? "single" : "group";
   const id = (kind === "single" ? data?.assetId : data?.groupId) ?? "";
-  if (!id) throw new Error("接入失败，稍后再试");
+  if (!id) throw new Error("解析失败，稍后再试");
   trackParsingJob(kind, id);
   return { kind, id };
 }

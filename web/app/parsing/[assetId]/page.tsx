@@ -97,7 +97,7 @@ export default function ParsingPage() {
         {!gone && !failed && <span className="kicktime">{formatElapsed(elapsed)}</span>}
       </div>
       <h1 className="display display--videoTitle">
-        {asset?.title ? `《${asset.title}》` : "正在接入这条视频…"}
+        {asset?.title ? `《${asset.title}》` : "正在解析这条视频…"}
       </h1>
 
       {gone && (
@@ -138,7 +138,7 @@ export default function ParsingPage() {
 
       {failed && asset && (
         <div className="perr">
-          <div className="pt">这条视频没能接入</div>
+          <div className="pt">这条视频没能解析</div>
           <div className="pd pd--why">{asset.errorMessage || "未知原因"}</div>
           <div className="pd">
             <button type="button" className="kfrom" onClick={retry} disabled={retrying}>

@@ -30,7 +30,7 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
       setState("done");
     } catch (e) {
       setState("error");
-      setError((e as Error).message || "接入失败，稍后再试");
+      setError((e as Error).message || "解析失败，稍后再试");
     }
   };
 
@@ -66,7 +66,7 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
           disabled={state === "submitting"}
         />
         <button type="submit" disabled={state === "submitting"}>
-          {state === "submitting" ? "接入中…" : "接入脉络"}
+          {state === "submitting" ? "解析中…" : "开始解析"}
           <span aria-hidden="true">→</span>
         </button>
       </form>
@@ -76,7 +76,7 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
           <span className="mapInputMeta__success">正在识别链接…合集需要十几秒枚举</span>
         )}
         {state === "done" && (
-          <span className="mapInputMeta__success">已接入，右下角可查看进度</span>
+          <span className="mapInputMeta__success">已提交解析，右下角可查看进度</span>
         )}
         {state === "idle" && !compact && (
           <>

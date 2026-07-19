@@ -14,7 +14,7 @@ import {
 /* 全局后台解析角标：常驻根 layout，不随页面切换卸载，离开解析等待页
    也不打断轮询。跟踪列表存 localStorage，每 2.5s 用现成的
    /api/assets/:id、/api/groups/:id 刷新一遍——不新开数据源。
-   空闲时也常驻：药丸变「＋ 接入」，面板顶部一行紧凑输入框，是首页
+   空闲时也常驻：药丸变「＋ 解析」，面板顶部一行紧凑输入框，是首页
    输入条之外唯一的粘贴入口；提交不跳页，任务行直接落在面板里。 */
 
 interface SingleData {
@@ -158,7 +158,7 @@ export function ParsingBadge() {
       await submitParse(draft); // 入列即广播，上面的监听会刷新面板
       setDraft("");
     } catch (e) {
-      setIntakeErr((e as Error).message || "接入失败，稍后再试");
+      setIntakeErr((e as Error).message || "解析失败，稍后再试");
     } finally {
       setIntakeBusy(false);
     }
@@ -172,10 +172,9 @@ export function ParsingBadge() {
   if (pathname?.startsWith("/parsing")) return null;
 
   const anyPending = entries.some((e) => !entryDone(e));
-  const stacked = /^\/collection\/[^/]+$/.test(pathname ?? "");
 
   return (
-    <div className={`pbadge${stacked ? " pbadge--stacked" : ""}${open ? " open" : ""}`}>
+    <div className={`pbadge${open ? " open" : ""}`}>
       <div className="pbadge__dropdown">
         <form className="pbadge__intake" onSubmit={submitIntake}>
           <input
@@ -191,7 +190,7 @@ export function ParsingBadge() {
             disabled={intakeBusy}
           />
           <button type="submit" disabled={intakeBusy}>
-            {intakeBusy ? "接入中…" : "接入 →"}
+            {intakeBusy ? "解析中…" : "解析 →"}
           </button>
         </form>
         {intakeErr && <span className="pbadge__intakeErr">{intakeErr}</span>}
@@ -305,7 +304,7 @@ export function ParsingBadge() {
         {entries.length === 0 ? (
           <>
             <span className="pbadge__plus" aria-hidden="true">＋</span>
-            <span className="pbadge__label">接入</span>
+            <span className="pbadge__label">解析</span>
           </>
         ) : (
           <>

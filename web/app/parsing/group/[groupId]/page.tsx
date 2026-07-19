@@ -71,7 +71,7 @@ export default function GroupParsingPage() {
       <h1 className="display">
         {assets
           ? `${doneCount} / ${assets.length} 条已完成`
-          : "正在接入这组视频…"}
+          : "正在解析这组视频…"}
       </h1>
 
       {gone && (
