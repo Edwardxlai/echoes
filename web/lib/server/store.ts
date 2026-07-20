@@ -377,6 +377,47 @@ export function listUnknownSeaAssets(): SourceAsset[] {
   return rows as unknown as SourceAsset[];
 }
 
+/** 首页搜索：在已解析资产里按标题/作者/核心问题/合集名 LIKE 匹配。 */
+export interface AssetSearchHit {
+  id: string;
+  title: string;
+  author: string;
+  coreQuestion: string;
+  /** eco/his/tech；其余大类与未分类统一归"未知海域"，返回 null。 */
+  categoryId: MappedRegionCategoryId | null;
+  collectionName: string;
+}
+
+export function searchAnalyzedAssets(query: string, limit = 20): AssetSearchHit[] {
+  const like = `%${query.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const rows = getDb()
+    .prepare(
+      `SELECT s.id, s.title, s.author, s.bigCategoryId,
+              COALESCE(a.coreQuestion, '') AS coreQuestion,
+              COALESCE(c.name, '') AS collectionName
+       FROM source_assets s
+       LEFT JOIN analyses a ON a.assetId = s.id
+       LEFT JOIN collections c ON c.id = s.collectionId
+       WHERE s.status = 'analyzed'
+         AND (s.title LIKE ? ESCAPE '\\' OR s.author LIKE ? ESCAPE '\\'
+              OR a.coreQuestion LIKE ? ESCAPE '\\' OR c.name LIKE ? ESCAPE '\\')
+       ORDER BY s.createdAt DESC LIMIT ?`
+    )
+    .all(like, like, like, like, limit) as Record<string, string | null>[];
+  return rows.map((r) => {
+    const mapped = isMappedRegionCategory(r.bigCategoryId as string | null);
+    return {
+      id: r.id as string,
+      title: (r.title as string) || "未命名视频",
+      author: (r.author as string) ?? "",
+      coreQuestion: (r.coreQuestion as string) ?? "",
+      categoryId: mapped ? (r.bigCategoryId as MappedRegionCategoryId) : null,
+      // 未知海域没有区域地图，不让 misc-soc/misc-sci 的合集名泄漏到搜索结果
+      collectionName: mapped ? ((r.collectionName as string) ?? "") : "",
+    };
+  });
+}
+
 /** 回响召回基准：全部已解析资产的脉络（排除指定资产自己）。 */
 export interface RecallSource {
   assetId: string;
