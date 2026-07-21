@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCollection, videosOf } from "@/lib/data";
+import { getCategory, getCollection, videosOf } from "@/lib/data";
 import { realCollectionDetail } from "@/lib/server/real-data";
 import { SynthesisPoints } from "@/components/reader/SynthesisPoints";
 import { CognitiveExpansionBlock } from "@/components/reader/CognitiveExpansionBlock";
@@ -12,10 +12,13 @@ export const dynamic = "force-dynamic";
    合集级 synthesis 由管线 L6 收尾生成；没生成出来就走"关联不够多"兜底。 */
 export default async function CollectionSynthesisPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ collectionId: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { collectionId } = await params;
+  const { from } = await searchParams;
 
   const seed = getCollection(collectionId);
   const real = seed ? null : realCollectionDetail(collectionId);
@@ -28,6 +31,7 @@ export default async function CollectionSynthesisPage({
         echoCount: seed.echoCount,
         synthesis: seed.synthesis ?? null,
         cognitiveExpansion: seed.cognitiveExpansion,
+        sourceUrl: "",
       }
     : {
         name: real!.name,
@@ -35,7 +39,15 @@ export default async function CollectionSynthesisPage({
         echoCount: real!.echoCount,
         synthesis: real!.synthesis,
         cognitiveExpansion: real!.cognitiveExpansion ?? undefined,
+        sourceUrl: real!.sourceUrl,
       };
+
+  // 返回键回到进来的那一级：从区域地图的「合集解析」进来（?from=region）就回区域，
+  // 默认（群岛页进来）回群岛。文字与目的地一致。
+  const category = getCategory(collection.categoryId);
+  const backToRegion = from === "region" && !!category;
+  const backHref = backToRegion ? `/category/${collection.categoryId}` : `/collection/${collectionId}`;
+  const backLabel = backToRegion ? `${category!.name}区域` : `${collection.name} · 群岛`;
 
   const videos = seed
     ? videosOf(collectionId).map((v) => ({
@@ -56,9 +68,24 @@ export default async function CollectionSynthesisPage({
   return (
     <div className="doc">
       <BrandHomeLink className="readerBrand" />
-      <Link className="backlink" href={`/collection/${collectionId}`}>
-        ← {collection.name} · 群岛
-      </Link>
+      <div className="docNav">
+        <Link className="backlink" href={backHref}>
+          ← &nbsp;{backLabel}
+        </Link>
+        {collection.sourceUrl && (
+          <span className="navR">
+            <a
+              className="sourceJump"
+              href={collection.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>查看原合集</span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          </span>
+        )}
+      </div>
 
       <h1 className="display">
         {collection.synthesis?.seriesQuestion ?? `${collection.name}：这组视频合起来在说什么？`}
@@ -117,7 +144,7 @@ export default async function CollectionSynthesisPage({
           </div>
           <CognitiveExpansionBlock
             data={collection.cognitiveExpansion}
-            topicBase={`extend.${collectionId}`}
+            topicBase={`collection.${collectionId}`}
           />
         </>
       )}

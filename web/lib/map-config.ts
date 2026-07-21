@@ -215,6 +215,17 @@ export const WORLD_SCENE: MapScene = {
       cameraZoom: 1.34,
       hitBox: { width: 150, height: 76, mobileWidth: 104, mobileHeight: 68 },
     }),
+    item({
+      id: "region-personal",
+      entityType: "category",
+      entityId: "personal",
+      x: 92,
+      y: 82,
+      asset: "/map-runtime/personal/my-world-region.png",
+      route: "/me",
+      cameraZoom: 1.34,
+      hitBox: { width: 150, height: 82, mobileWidth: 104, mobileHeight: 68 },
+    }),
   ],
 };
 

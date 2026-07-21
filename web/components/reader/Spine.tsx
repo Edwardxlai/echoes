@@ -63,7 +63,8 @@ export function Spine({ nodes, videoId }: { nodes: Node[]; videoId?: string }) {
                 {n.echo && (
                   <EchoBlock
                     echo={n.echo}
-                    topicId={videoId ? `echo.${videoId}.${n.id}` : undefined}
+                    topicId={videoId ? `video.${videoId}` : undefined}
+                    nodeId={n.id}
                   />
                 )}
               </div>

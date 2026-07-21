@@ -5,9 +5,12 @@ import {
   getAsset, getCollectionRow, getParsedVideo, isMappedRegionCategory, listCollections,
 } from "@/lib/server/store";
 import { MISC_COLLECTION, type CategoryId } from "@/lib/server/pipeline";
+import { resolveTopic, topicQuotePool } from "@/lib/server/discussion";
 import { Spine } from "@/components/reader/Spine";
 import { CognitiveExpansionBlock } from "@/components/reader/CognitiveExpansionBlock";
 import { MoveControl, type MoveTargetCategory } from "@/components/reader/MoveControl";
+import { ThoughtComposer } from "@/components/reader/ThoughtComposer";
+import { FootprintTrack } from "@/components/reader/FootprintTrack";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
 
 const CONTINENT_IDS = ["eco", "his", "tech"] as const;
@@ -62,9 +65,20 @@ export default async function VideoPage({
   const currentCategoryId =
     asset && isMappedRegionCategory(asset.bigCategoryId) ? asset.bigCategoryId : null;
 
+  // 讨论空间 = 这条视频自己（video.{id}），记想法的引原文池与讨论区共用一份逻辑
+  const topic = resolveTopic(`video.${video.id}`);
+  const quotePool = topic ? topicQuotePool(`video.${video.id}`) : [];
+
   return (
     <div className="doc">
       <BrandHomeLink className="readerBrand" />
+      <FootprintTrack
+        videoId={video.id}
+        videoTitle={video.title}
+        categoryId={topic?.categoryId ?? ""}
+        collectionId={collection?.id}
+        collectionTitle={collection?.name}
+      />
       <div className="docNav">
         <Link
           className="backlink"
@@ -72,29 +86,34 @@ export default async function VideoPage({
         >
           ← &nbsp;{collection ? `${collection.name} · 群岛` : "世界地图"}
         </Link>
-        {(video.sourceUrl || moveTargets) && (
-          <span className="navR">
-            {video.sourceUrl && (
-              <a
-                className="sourceJump"
-                href={video.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span>查看原视频</span>
-                <span aria-hidden="true">↗</span>
-              </a>
-            )}
-            {moveTargets && (
-              <MoveControl
-                assetId={video.id}
-                currentCategoryId={currentCategoryId}
-                currentCollectionId={parsed?.collectionId ?? null}
-                targets={moveTargets}
-              />
-            )}
-          </span>
-        )}
+        <span className="navR">
+          {video.sourceUrl && (
+            <a
+              className="sourceJump"
+              href={video.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>查看原视频</span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          )}
+          {moveTargets && (
+            <MoveControl
+              assetId={video.id}
+              currentCategoryId={currentCategoryId}
+              currentCollectionId={parsed?.collectionId ?? null}
+              targets={moveTargets}
+            />
+          )}
+          <ThoughtComposer
+            videoId={video.id}
+            videoTitle={video.title}
+            categoryId={topic?.categoryId ?? ""}
+            href={`/video/${video.id}`}
+            quotePool={quotePool}
+          />
+        </span>
       </div>
 
       <h1 className="display display--question">{video.coreQuestion}</h1>
@@ -119,7 +138,7 @@ export default async function VideoPage({
             <span className="tt">认知·拓展</span>
             <span className="sub">该补上的，值得追问的</span>
           </div>
-          <CognitiveExpansionBlock data={cognitiveExpansion} topicBase={`extend.${video.id}`} />
+          <CognitiveExpansionBlock data={cognitiveExpansion} topicBase={`video.${video.id}`} />
         </>
       )}
 

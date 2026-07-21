@@ -139,6 +139,8 @@ export interface RealLandmark {
   mapItem: MapItem;
   /** 合集级跨视频合成是否已生成——决定区域地图信息面板是否出"合集解析"入口。 */
   hasSynthesis: boolean;
+  /** 原合集链接（仅 mix 合集有；自动聚类合集为空串）。 */
+  sourceUrl: string;
 }
 
 function toLandmark(row: CollectionRow, index: number, overflowIndex: number): RealLandmark {
@@ -162,6 +164,7 @@ function toLandmark(row: CollectionRow, index: number, overflowIndex: number): R
     terrain: TERRAIN_BY_GLYPH[glyphKind],
     glyphKind,
     hasSynthesis: getSynthesis(row.id) !== null,
+    sourceUrl: row.sourceUrl ?? "",
     mapItem: createMapItem({
       id: `landmark-${row.id}`,
       entityType: "collection",
@@ -236,6 +239,8 @@ export interface RealCollectionDetail {
   synthesis: Synthesis | null;
   /** 合集级认知拓展："往旁看"补缺 + 整组之上的延伸。两者门控皆空时为 null。 */
   cognitiveExpansion: CognitiveExpansion | null;
+  /** 原合集链接（仅 mix 合集有；自动聚类/未知海域为空串）。 */
+  sourceUrl: string;
 }
 
 export function realCollectionDetail(collectionId: string): RealCollectionDetail | null {
@@ -277,6 +282,7 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
       islands,
       synthesis: null,
       cognitiveExpansion: null,
+      sourceUrl: "",
     };
   }
 
@@ -353,5 +359,6 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
     islands,
     synthesis: getSynthesis(row.id),
     cognitiveExpansion,
+    sourceUrl: row.sourceUrl ?? "",
   };
 }

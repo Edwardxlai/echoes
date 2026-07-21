@@ -50,6 +50,30 @@
 .movePick__item--sea{border-top:1px solid var(--rule)}
 .movePick__mark{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--ink-3)}
 .movePick__err{padding:7px 14px 9px;font-size:11.5px;color:var(--no)}
+/* 记下想法：解析页里的轻量动作，与「移动」同级同色，面板贴右缘下拉 */
+.thoughtCtl{position:relative}
+.thoughtBtn{border:0;background:none;padding:0 2px;font-family:var(--sans);font-size:12px;
+  letter-spacing:.04em;color:var(--ink-3);cursor:pointer;transition:color .18s}
+.thoughtBtn:hover,.thoughtBtn[aria-expanded="true"]{color:var(--ink)}
+.thoughtBtn:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+.thoughtPick{position:absolute;top:calc(100% + 8px);right:0;z-index:30;width:280px;
+  padding:14px;display:flex;flex-direction:column;gap:10px;
+  background:var(--bg);border:1px solid var(--rule);box-shadow:0 6px 24px rgba(28,26,22,.12)}
+.thoughtInput{width:100%;min-height:64px;resize:vertical;background:none;border:0;
+  border-bottom:1px solid var(--rule);padding:0 0 8px;font-family:var(--serif);font-size:14.5px;
+  line-height:1.75;color:var(--ink)}
+.thoughtInput::placeholder{color:var(--ink-2)}
+.thoughtInput:focus{border-bottom-color:var(--ink)}
+.thoughtRow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.thoughtPublish{display:flex;align-items:center;gap:6px;font-family:var(--sans);
+  font-size:11.5px;color:var(--ink-3);cursor:pointer}
+.thoughtActs{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.thoughtSaved{font-family:var(--sans);font-size:11.5px;color:var(--amber)}
+.thoughtSend{flex:none;background:none;border:0;padding:0 0 3px;font-family:var(--serif);
+  font-size:14px;color:var(--ink);cursor:pointer;border-bottom:1px solid var(--ink);
+  transition:padding .12s}
+.thoughtSend:hover:not(:disabled){border-bottom-width:2px;padding-bottom:4px}
+.thoughtSend:disabled{color:var(--ink-3);border-bottom-color:var(--rule);cursor:default}
 .colophon{margin-top:88px;text-align:center;font-family:var(--mono);font-size:11px;
   color:var(--ink-3);letter-spacing:.3em;text-indent:.3em}
 
@@ -99,6 +123,8 @@
 .nlabel .sp{flex:none;margin-left:0}
 .node.glow .nlabel .hl{background:linear-gradient(180deg,transparent 58%,var(--amber-wash) 58%)}
 .sp{font-family:var(--sans);font-size:12px;color:var(--amber);margin-left:10px;letter-spacing:.05em}
+/* 足迹岛：留过想法的素色徽标——不借暖金，那是回响专属色 */
+.footmark{font-family:var(--sans);font-size:12px;color:var(--ink-3);margin-left:10px;letter-spacing:.05em}
 .detail{max-height:0;overflow:hidden;transition:max-height .34s ease}
 .dtext{padding-top:8px;font-size:14.5px;line-height:1.9;color:var(--ink-2)}
 .node.open .detail{max-height:280px}
@@ -268,29 +294,13 @@ button.kfrom:disabled{opacity:.55;cursor:default}
 .techo .eq{margin-top:10px;font-family:var(--serif);font-size:21px;line-height:1.85}
 .techo .ef{margin-top:10px;font-family:var(--serif);font-size:18px;line-height:1.85;color:var(--ink)}
 /* 小拨杆：当前项实心墨点+墨色，未选空心+灰。次要控件，不抢锚定 */
-/* ---------- 方案4：脉络从问题处起笔 ----------
-   头部锚定并入左轨栅格（16px 槽 + 16px 隙，与帖流同轴），空心起点环挂在
-   问题/回响块旁；发丝线改为分段绘制（qrow/tnav/tstream 各管一段，行行相接），
-   有帖才画线（.haslines），空题只留孤环。 */
-.tflow{position:relative}
-.qrow{position:relative;display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:16px;
-  padding:6px 0 14px}
+/* 讨论区头部（2026-07-21 用户定稿：去掉"脉络从问题处起笔"那根竖线+起点环——
+   三分区各自封闭轨道之后，这根线已经不接向任何东西，纯孤儿装饰）。
+   题头/tab 栏都改回普通齐左块，不再占左侧的点位栅格。 */
+.qrow{padding:6px 0 10px}
 .qrow .display{margin:0}
-.qrow .techo{margin-top:0}
-.torigin{width:10px;height:10px;border-radius:50%;box-sizing:border-box;justify-self:center;
-  margin-top:19px;background:var(--bg);border:1.5px solid var(--ink);position:relative;z-index:1}
-.qrow:has(.techo) .torigin{margin-top:5px}
-/* 延伸题头与解析页问题句同级（display--question）后首行变矮，环与起笔点随行心上移 */
-.qrow:has(.display--question) .torigin{margin-top:15px}
-.tflow.haslines .qrow:has(.display--question)::after{top:23px}
-.tflow.haslines .qrow::after{content:"";position:absolute;left:7.5px;top:27px;bottom:0;
-  width:1px;background:var(--rule)}
-.tflow .tempty{margin-left:32px}
 
-.tnav{position:relative;display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:16px;
-  padding:24px 0 2px}
-.tflow.haslines .tnav::before{content:"";position:absolute;left:7.5px;top:0;bottom:0;
-  width:1px;background:var(--rule)}
+.tnav{padding:10px 0 2px}
 .tnavBtns{display:flex;gap:28px}
 .tnavBtn{display:inline-flex;align-items:center;gap:8px;background:none;border:0;padding:0;
   cursor:pointer;font-family:var(--sans);font-size:13px;letter-spacing:.06em;
@@ -303,8 +313,34 @@ button.kfrom:disabled{opacity:.55;cursor:default}
 .tstream{position:relative;margin-top:0;animation:xfade .24s ease}
 @media (prefers-reduced-motion:reduce){.tstream{animation:none}}
 .tstream::before{content:"";position:absolute;left:7.5px;top:0;bottom:30px;width:1px;background:var(--rule)}
-/* 门槛锁着（无 composer）：线在最后一个墨点下断掉——线还没画完 */
+/* 分区末尾没有 composer 跟着（置顶提问/回响交点恒是）：线在最后一个墨点下断掉 */
 .tstream.nofin::before{bottom:16px}
+/* 讨论区三分区（置顶提问/回响交点/普通讨论，2026-07-21 用户定稿）：
+   每个分区自己的墨点轨道各自封闭，不再和别的分区连成一条线。 */
+.tzone{margin-top:32px}
+.tzone:first-child{margin-top:0}
+.tzone-head{display:flex;align-items:center;justify-content:space-between;width:100%;
+  background:none;border:0;font-family:var(--sans);font-size:12px;
+  letter-spacing:.03em;color:var(--ink-3);padding:0 0 10px;margin-bottom:2px;
+  border-bottom:1px solid var(--rule);text-align:left}
+.tzhead{display:flex;align-items:center;gap:7px}
+/* 三个分区头都可点折叠（2026-07-21 用户定稿：置顶提问也要能收，默认摊开就行） */
+.tzone-head{cursor:pointer;transition:color .18s}
+.tzone-head:hover{color:var(--ink)}
+.tzone-head--echo,.tzone-head--echo:hover{color:var(--amber)}
+.tzone-head--echo .tzdot{width:6px;height:6px;border-radius:50%;background:var(--amber)}
+.tzone-head .tzc{font-family:var(--mono);font-size:11px;color:inherit}
+.tzone-head .tzc::before{content:"· "}
+/* +/− 借补缺·延伸的开合符号（.xtoggle）同一副字，不用箭头字符——那套已经验证过耐看 */
+.tzchev{font-family:var(--mono);font-size:13px;color:inherit}
+/* 回响交点的轨道也转暖金——它是全站唯一允许暖金的引文类型 */
+.tstream--echo::before{background:var(--amber-wash)}
+/* 分区收放（2026-07-21 用户定稿：借补缺·延伸卡片的缩放开合，而非硬切）：
+   grid-template-rows 0fr↔1fr 是唯一不用瞎猜 max-height magic number 就能让任意
+   高度内容平滑展开的写法——.tzbody-in 提供可 overflow:hidden 的实体，配合父格轨道缩放。 */
+.tzbody{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s ease}
+.tzbody--open{grid-template-rows:1fr}
+.tzbody-in{overflow:hidden;min-height:0}
 .tpost{display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:16px;padding:18px 0}
 .tpdot{width:8px;height:8px;border-radius:50%;background:var(--ink);margin-top:7px;
   justify-self:center;position:relative;z-index:1}
@@ -331,11 +367,20 @@ button.kfrom:disabled{opacity:.55;cursor:default}
   transition:color .18s}
 .pquote:hover{border-left-color:var(--ink-3)}
 .pquote:hover .pqs{color:var(--ink-2)}
+/* 引的是一条回响：暖金——它是全站唯一允许暖金的引文类型 */
+.pquote--echo{border-left-color:var(--amber)}
+.pquote--echo .pqt{color:var(--amber)}
+.pquote--echo:hover{border-left-color:var(--amber-hot)}
+/* 置顶提问帖（延伸点降格而来）：落款转暖金，不参与同感/时间；2026-07-21 用户定稿
+   只留问题本身，AI 追问方向（原 hint）不在讨论区展示——认知拓展区块仍照常展示 */
+.tpost--pinned .tpdot{background:var(--amber)}
+.tppin{font-size:11px;color:var(--amber);letter-spacing:.04em}
+.tppin::after{content:" ·";color:var(--rule)}
 .tpacts{margin-top:11px;display:flex;gap:24px;font-family:var(--sans);font-size:12.5px;
   color:var(--ink-3);font-variant-numeric:tabular-nums}
-.tpacts button{display:inline-flex;align-items:center;gap:7px;background:none;border:0;padding:0;
-  font:inherit;color:inherit;cursor:pointer;transition:color .18s}
-.tpacts button:hover{color:var(--ink)}
+.tpacts button,.tpacts a{display:inline-flex;align-items:center;gap:7px;background:none;border:0;padding:0;
+  font:inherit;color:inherit;text-decoration:none;cursor:pointer;transition:color .18s}
+.tpacts button:hover,.tpacts a:hover{color:var(--ink)}
 /* 已同感高亮走暖金（2026-07-17 用户定稿：状态要一眼可见，覆盖"暖金只给回响"红线） */
 .tpacts button.on,.tpacts button.on:hover{color:var(--amber)}
 .tpacts .apip{width:6px;height:6px;border-radius:50%;border:1px solid currentColor;
@@ -381,6 +426,25 @@ button.kfrom:disabled{opacity:.55;cursor:default}
   font-family:var(--sans);font-size:12.5px;color:var(--ink-3);transition:color .18s}
 .tquote:hover{color:var(--ink)}
 .tquote.on{color:var(--amber)}
+/* 私密/公开二选一（2026-07-21 用户定稿）：文字直接换字，点一下切一档，
+   不开菜单——公开是默认态不强调，切到私密才转墨色提醒"这条只有你能看到"。
+   左边圆点借帖流 composer 那颗 .tpdot.hollow 的空心/实心语汇（同一套状态隐喻，
+   非临时新造）：公开=空心环，私密=墨色实心。圆点走 ::before（不是 inline-flex
+   容器）——.tcompose 整行 align-items:baseline，flex 容器会带偏按钮自己的基线，
+   跟 .tquote/.tsend 对不齐（2026-07-21 修）。 */
+/* 文字内容（公开/私密换字）本来就是瞬时的（React 直接换文本节点），颜色/圆点也不带
+   transition——上一轮只清了圆点的渐变，字色那条 .18s 忘了删，三者还是不同步
+   （2026-07-21 再修）。这颗按钮点一下就是切状态，不是需要过渡感的常态微交互。 */
+.tvis{flex:none;background:none;border:0;padding:0 0 4px;cursor:pointer;
+  font-family:var(--sans);font-size:12.5px;color:var(--ink-3)}
+.tvis:hover{color:var(--ink)}
+.tvis--private{color:var(--ink)}
+.tvis::before{content:"";display:inline-block;width:7px;height:7px;margin-right:6px;
+  border-radius:50%;box-sizing:border-box;background:var(--bg);border:1px solid var(--ink-3);
+  vertical-align:middle}
+.tvis:hover::before{border-color:var(--ink)}
+.tvis--private::before{background:var(--ink);border-color:var(--ink)}
+.tvisSaved{font-family:var(--sans);font-size:11.5px;color:var(--ink-3)}
 /* 引原文选择器：列出本视频脉络，选一句带进想法 */
 .qpick{border:1px solid var(--rule);background:var(--bg-soft);padding:4px 0;
   max-height:300px;overflow-y:auto}
@@ -414,10 +478,6 @@ button.kfrom:disabled{opacity:.55;cursor:default}
 .tsend:hover:not(:disabled){border-bottom-width:2px;padding-bottom:3px}
 .tsend:disabled{color:var(--ink-3);border-bottom-color:var(--rule);cursor:default}
 .terr{margin-top:10px;font-size:12.5px;color:var(--no)}
-/* 门槛线（linux.do 的精神，点线的语法）：锁行 + 进度墨点 + 去大陆的门 */
-.lockline{margin-top:36px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;
-  font-family:var(--sans);font-size:14px;color:var(--ink-2)}
-.gdots{font-family:var(--mono);font-size:11px;color:var(--ink);letter-spacing:.2em}
 
 /* ---------- 集数索引（合集解析页，PRD §6.4.3）：目录式行，只是入口 ---------- */
 .toc{margin-top:28px;border-top:1px solid var(--rule)}

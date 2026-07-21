@@ -7,6 +7,7 @@ import "@fontsource/noto-serif-sc/index.css";
 import "@fontsource/noto-serif-sc/500.css";
 import "./globals.css";
 import { ParsingBadge } from "@/components/parsing/ParsingBadge";
+import { JournalDemoSeed } from "@/components/me/JournalDemoSeed";
 
 export const metadata: Metadata = {
   title: "知音",
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body>
         {children}
         <ParsingBadge />
+        <JournalDemoSeed />
       </body>
     </html>
   );

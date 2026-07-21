@@ -1,8 +1,7 @@
-import { categoryGate, resolveTopic, topicQuotePool } from "@/lib/server/discussion";
+import { resolveTopic, topicQuotePool } from "@/lib/server/discussion";
 import { addTopicPost, deleteTopicPost } from "@/lib/server/store";
 
-/* 同题空间发帖（讨论区 P0，单用户本地）。
-   门槛在这里收（延伸题线查大类积累；回响线自动解锁）——入口只是门，票在门口验。 */
+/* 讨论空间发帖（讨论区收拢版，单用户本地）。发言不设门槛（2026-07-21 删除）。 */
 export async function POST(request: Request) {
   const data = (await request.json().catch(() => null)) as {
     topicId?: unknown;
@@ -22,15 +21,6 @@ export async function POST(request: Request) {
   const topic = resolveTopic(topicId);
   if (!topic) {
     return Response.json({ error: "这条讨论不存在" }, { status: 404 });
-  }
-  if (topic.kind === "extend") {
-    const gate = categoryGate(topic.categoryId);
-    if (!gate.unlocked) {
-      return Response.json(
-        { error: `在${gate.categoryName}大陆看够 ${gate.need} 条才能开口` },
-        { status: 403 }
-      );
-    }
   }
   /* quoteRef：主帖和回复都能带；nodeId 必须在本题的可引池里，快照文本取服务端原句 */
   let quote: { nodeId: string; text: string } | undefined;

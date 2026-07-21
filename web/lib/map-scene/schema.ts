@@ -4,7 +4,8 @@ export type WorldRegionId =
   | "region-tech"
   | "region-unknown"
   | "region-soc"
-  | "region-sci";
+  | "region-sci"
+  | "region-personal";
 
 export interface WorldCameraPreset {
   target: [number, number];
@@ -28,7 +29,7 @@ export type WorldExpansionIslandState = "locked" | "available" | "hidden";
 export interface WorldExpansionIslandManifest {
   id: string;
   regionId: WorldRegionId;
-  categoryId: "unknown" | "soc" | "sci";
+  categoryId: "unknown" | "soc" | "sci" | "personal";
   state: WorldExpansionIslandState;
   position: [number, number, number];
   size: [number, number];

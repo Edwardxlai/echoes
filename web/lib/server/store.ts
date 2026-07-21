@@ -71,6 +71,8 @@ export interface CollectionRow {
   id: string;
   name: string;
   categoryId: string;
+  /** 原合集链接（抖音 mix 页）。自动聚类的 tc-/misc- 合集没有来源，恒为空串。 */
+  sourceUrl: string;
   createdAt: string;
 }
 
@@ -150,6 +152,7 @@ function getDb(): DatabaseSync {
     `ALTER TABLE topic_posts ADD COLUMN parentId TEXT`,
     `ALTER TABLE topic_posts ADD COLUMN quoteNodeId TEXT`,
     `ALTER TABLE topic_posts ADD COLUMN quoteText TEXT`,
+    `ALTER TABLE collections ADD COLUMN sourceUrl TEXT NOT NULL DEFAULT ''`,
   ]) {
     try { db.exec(sql); } catch { /* 列已存在 */ }
   }
@@ -274,6 +277,11 @@ export function upsertCollection(id: string, name: string, categoryId: string): 
        ON CONFLICT(id) DO UPDATE SET name = excluded.name, categoryId = excluded.categoryId`
     )
     .run(id, name, categoryId, now());
+}
+
+/** mix 合集的原链接在 intake 时写入；upsertCollection 的冲突更新不会碰它。 */
+export function setCollectionSourceUrl(id: string, sourceUrl: string): void {
+  getDb().prepare(`UPDATE collections SET sourceUrl = ? WHERE id = ?`).run(sourceUrl, id);
 }
 
 export function getCollectionRow(id: string): CollectionRow | null {
@@ -490,6 +498,25 @@ export function listTopicPosts(topicId: string): TopicPostRow[] {
   const rows = getDb()
     .prepare(`SELECT * FROM topic_posts WHERE topicId = ? ORDER BY createdAt`)
     .all(topicId);
+  return rows as unknown as TopicPostRow[];
+}
+
+/** 讨论区收拢（2026-07-20）：取一个视频/合集名下的全部真实帖——
+    新空间编码（video./collection.）与废弃线编码（extend./echo.）一起查，
+    旧帖在 discussion.ts 读取层迁移进空间视图，库里数据原样不动。 */
+export function listTopicPostsByOwner(ownerId: string): TopicPostRow[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT * FROM topic_posts
+       WHERE topicId IN (?, ?) OR topicId LIKE ? OR topicId LIKE ?
+       ORDER BY createdAt`
+    )
+    .all(
+      `video.${ownerId}`,
+      `collection.${ownerId}`,
+      `extend.${ownerId}.%`,
+      `echo.${ownerId}.%`
+    );
   return rows as unknown as TopicPostRow[];
 }
 

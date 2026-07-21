@@ -10,9 +10,15 @@ import { FocusMark } from "./EchoBlock";
    两块板共用同一副书摘卡骨架（参照 Readwise Daily Review / 微信读书分享卡）：
    条目 = 18px 宋体正文；补缺戳破+补上连读成一段，内容自己说话。
    延伸条目点开出 AI 的 hint 和一扇统一的"去讨论"门（暖金高亮，本页零输入框）。
-   门不显人数；topicBase（extend.{videoId|collectionId}）在则门通向同题空间 /topic/。 */
+   门不显人数；topicBase（video.{id}|collection.{id}，讨论区收拢版）在则门通向
+   对应置顶帖（/topic/{topicBase}?reply=pin-{i}）——延伸点本身就是那条帖。 */
 
 type TabKey = "补缺" | "延伸";
+
+/* 延伸固定展示前 2 条置顶帖（docs/我的岛屿_功能设计.md §2.3，与
+   lib/server/discussion.ts 的 PINNED_MAX 同一口径）：存量第 3 条不再展示，
+   不必为此全量重跑管线。 */
+const PINNED_MAX = 2;
 
 const hang = (s: string) => (/^[「《『【]/.test(s) ? " hang" : "");
 
@@ -118,7 +124,7 @@ export function CognitiveExpansionBlock({
         )}
 
         {tab === "延伸" &&
-          data.extend.map((item, i) => {
+          data.extend.slice(0, PINNED_MAX).map((item, i) => {
             const open = openSet.has(i);
             return (
               <div
@@ -143,7 +149,7 @@ export function CognitiveExpansionBlock({
                     {topicBase ? (
                       <Link
                         className="door door--topic"
-                        href={`/topic/${topicBase}.${i}`}
+                        href={`/topic/${topicBase}?reply=pin-${i}`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         去讨论 →

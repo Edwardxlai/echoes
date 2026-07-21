@@ -239,7 +239,7 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
       <div className="mapInputMeta" id={`${inputId}-note`} aria-live="polite">
         {state === "error" && <span className="mapInputMeta__error">{error}</span>}
         {state === "submitting" && (
-          <span className="mapInputMeta__success">正在识别链接…合集需要十几秒枚举</span>
+          <span className="mapInputMeta__pending">正在识别链接…合集需要十几秒枚举</span>
         )}
         {state === "done" && (
           <span className="mapInputMeta__success">已提交解析，右下角可查看进度</span>
@@ -251,11 +251,11 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
           </span>
         )}
         {state === "idle" && !notice && mode === "parse" && compact && (
-          <span>支持抖音单条视频 / 现成合集 · 点击右侧按钮切换到搜索模式</span>
+          <span className="mapInputMeta__mode">支持抖音单条视频 / 现成合集 · 点击右侧按钮切换到搜索模式</span>
         )}
         {state === "idle" && !notice && mode === "parse" && !compact && (
           <>
-            <span>支持抖音单条视频 / 现成合集 / 自定义视频组</span>
+            <span className="mapInputMeta__mode">支持抖音单条视频 / 现成合集 / 自定义视频组</span>
             <span className="mapInputMeta__sample">试用示例 ↗</span>
           </>
         )}

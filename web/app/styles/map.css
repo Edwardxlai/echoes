@@ -231,6 +231,7 @@
 .mapInputMeta__sample{color:var(--amber)}
 .mapInputMeta__error{color:var(--no)}
 .mapInputMeta__success{color:var(--yes)}
+.mapInputMeta__pending{color:var(--amber)}
 .mapInputMeta__mode{color:var(--amber)}
 
 /* 首页搜索：解析条右侧独立「搜索」切换钮 + 结果下拉。
@@ -963,6 +964,8 @@
 .island__historyArt{filter:drop-shadow(0 5px 7px rgba(80,69,86,.17))}
 .island.island--unknown.is-unviewed{--island-opacity:.84;--island-saturation:.72}
 .island__unknownArt{filter:drop-shadow(0 5px 7px rgba(66,84,82,.16))}
+.island.island--personal.is-unviewed{--island-opacity:.84;--island-saturation:.72}
+.island__personalArt{filter:drop-shadow(0 5px 7px rgba(80,80,110,.16))}
 .island.island--newChina.is-active{
   transform:scale(1.015);
   filter:brightness(1.025) saturate(1.02) drop-shadow(0 8px 9px rgba(48,86,79,.14));
@@ -978,6 +981,10 @@
 .island.island--history.is-active{
   transform:translateY(-6px) scale(1.025);
   filter:brightness(1.035) saturate(1.03) drop-shadow(0 10px 10px rgba(80,69,86,.19));
+}
+.island.island--personal.is-active{
+  transform:translateY(-6px) scale(1.025);
+  filter:brightness(1.035) saturate(1.04) drop-shadow(0 10px 10px rgba(80,80,110,.18));
 }
 .island.is-new>.island__visual{animation:islandGrow .9s cubic-bezier(.16,.85,.24,1) both}
 .island.is-new{animation:islandGrow .9s cubic-bezier(.16,.85,.24,1) both}

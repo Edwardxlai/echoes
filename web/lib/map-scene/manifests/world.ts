@@ -141,5 +141,28 @@ export const WORLD_MANIFEST: WorldSceneManifest = {
         },
       },
     },
+    {
+      id: "my-island",
+      regionId: "region-personal",
+      categoryId: "personal",
+      state: "available",
+      position: [58, -20, 0],
+      size: [34, 21.26],
+      anchor: [58, -20, 3.4],
+      hitSize: [31, 19.5],
+      focus: { target: [58, -20], zoomRatio: 1.34 },
+      assets: {
+        flatTerrain: "/map-runtime/personal/my-world-region.png",
+        terrain: `${RUNTIME}/expansion/island-a/terrain/world_expansion-island-a_terrain_default_lod1_v01.webp`,
+        contactShadow: `${RUNTIME}/expansion/island-a/terrain/world_expansion-island-a_contact-shadow_default_lod1_v01.webp`,
+        height: `${RUNTIME}/expansion/island-a/terrain/world_expansion-island-a_height_default_lod1_v01.webp`,
+        mask: `${RUNTIME}/expansion/island-a/terrain/world_expansion-island-a_mask_default_lod1_v01.webp`,
+        coast: {
+          shallow: `${RUNTIME}/expansion/island-a/coast/world_expansion-island-a_coast-shallow_default_lod1_v01.webp`,
+          wetContact: `${RUNTIME}/expansion/island-a/coast/world_expansion-island-a_coast-wet_default_lod1_v01.webp`,
+          foam: `${RUNTIME}/expansion/island-a/coast/world_expansion-island-a_coast-foam_default_lod1_v01.webp`,
+        },
+      },
+    },
   ],
 };

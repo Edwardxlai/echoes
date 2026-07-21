@@ -8,9 +8,9 @@ import { useEffect, useState } from "react";
 const DISMISS_KEY = "zhiyin.worldTipDismissed";
 
 const TIP_LINES = [
-  "粘贴视频链接，「开始解析」会把内容整理成这张知识地图",
-  "点选区域进入合集，再深入到单条视频的脉络",
-  "「回响」标记不同视频观点之间的互相应答",
+  "粘贴一条视频链接，点「开始解析」，AI 会把内容拆解清楚，并生成地图上的一个岛屿",
+  "点地图上的区域，能看到一批相关视频；点进某一条，能看到它完整的讲解逻辑",
+  "如果两条视频讲的内容有关联，系统会自动识别出来并标成「回响」，点开就能看到两边具体说了什么、怎么呼应上的",
 ];
 
 export function WorldMapTip() {

@@ -19,6 +19,7 @@ interface LandmarkDef {
   glyphKind: "city" | "tower" | "ruins" | "port";
   mapItem: MapItem;
   synthesisRoute?: string;
+  sourceUrl?: string;
 }
 
 const REGION_NUMBER: Record<string, string> = {
@@ -55,7 +56,9 @@ export default async function RegionMapPage({
       terrain: real.terrain,
       glyphKind: real.glyphKind,
       mapItem: real.mapItem,
-      synthesisRoute: real.hasSynthesis ? `${real.mapItem.route}/synthesis` : undefined,
+      // from=region：合集解析页返回键回区域地图，而不是默认的群岛
+      synthesisRoute: real.hasSynthesis ? `${real.mapItem.route}/synthesis?from=region` : undefined,
+      sourceUrl: real.sourceUrl || undefined,
     }));
   } else {
     const seedItems = new Map((scene?.items ?? []).map((item) => [item.entityId, item]));
@@ -71,7 +74,7 @@ export default async function RegionMapPage({
           terrain: collection.terrain,
           glyphKind: collection.glyphKind,
           mapItem,
-          synthesisRoute: collection.synthesis ? `${mapItem.route}/synthesis` : undefined,
+          synthesisRoute: collection.synthesis ? `${mapItem.route}/synthesis?from=region` : undefined,
         },
       ];
     });
@@ -96,6 +99,8 @@ export default async function RegionMapPage({
     routeLabel: "进入群岛",
     secondaryRoute: landmark.synthesisRoute,
     secondaryLabel: landmark.synthesisRoute ? "合集解析" : undefined,
+    sourceHref: landmark.sourceUrl,
+    sourceLabel: landmark.sourceUrl ? "查看原合集" : undefined,
     echo: landmark.echoCount > 0,
     focusX: landmark.mapItem.x,
     focusY: landmark.mapItem.y,

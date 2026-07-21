@@ -19,9 +19,21 @@ export function FocusMark({ text, focus }: { text: string; focus?: string }) {
 /* 回响块（Spine / SynthesisPoints 共用），方案 D「只留旧方」：
    新方说法=上方节点叙述本身，不复述；这里只出关系词 + 旧方一句（分歧焦点划荧光），
    出处和跳转收在末行。演示数据没有 oldSay，退回"关系句 + 展开"。
-   topicId（echo.{videoId}.{nodeId}）在则末行加同题空间入口。
+   topicId（video.{videoId}，讨论区收拢版）+ nodeId 在则末行加入口：
+   进讨论空间，输入框自动带上这条回响作为引用（?quote=echo:{nodeId}）。
    两个链接措辞 2026-07-17 用户定稿：动词开头、说清去处，不玩"相遇"隐喻。 */
-export function EchoBlock({ echo, topicId }: { echo: Echo; topicId?: string }) {
+export function EchoBlock({
+  echo,
+  topicId,
+  nodeId,
+}: {
+  echo: Echo;
+  topicId?: string;
+  nodeId?: string;
+}) {
+  const topicHref = nodeId
+    ? `/topic/${topicId}?quote=${encodeURIComponent(`echo:${nodeId}`)}`
+    : `/topic/${topicId}`;
   return (
     <div className="echoIn">
       {echo.oldSay ? (
@@ -57,7 +69,7 @@ export function EchoBlock({ echo, topicId }: { echo: Echo; topicId?: string }) {
         {topicId && (
           <Link
             className="ejump"
-            href={`/topic/${topicId}`}
+            href={topicHref}
             onClick={(e) => e.stopPropagation()}
           >
             去讨论 →

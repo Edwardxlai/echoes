@@ -33,6 +33,10 @@ const unknown = (file: string, label: string): IslandArt => ({
   href: `/map-runtime/archipelago/kit/unknown/parts/${file}`,
   label,
 });
+const personal = (file: string, label: string): IslandArt => ({
+  href: `/map-runtime/personal/${file}`,
+  label,
+});
 
 const UNKNOWN_SEA_ART: IslandArt[] = [
   unknown("archipelago_kit_unknown_wayfinder-lighthouse_lod1_v01.webp", "引航灯塔"),
@@ -93,6 +97,9 @@ export const DEDICATED_ISLAND_ART: Record<string, IslandArt> = {
   "9eda1db0": tech("islands/technology_misc-tech_island_9eda1db0_lod1_v01.webp", "科技帝国岛"),
   "040b8997": tech("islands/technology_misc-tech_island_040b8997_lod1_v01.webp", "AI 搭建工坊岛"),
   "748984ee": tech("islands/technology_misc-tech_island_748984ee_lod1_v01.webp", "AI 知识库岛"),
+  /* 我的岛屿：只有这两座固定岛，不走类目池分配 */
+  "my-thoughts": personal("thought-island.png", "想法岛"),
+  "my-footprints": personal("footprint-island.png", "足迹岛"),
 };
 
 /* 新中国系列（07ae1f5b）按槽位顺序取岛，不走 entityId 映射；
@@ -137,6 +144,7 @@ const ISLAND_POOLS: Record<string, PoolEntry[]> = {
     ...TECH_RESERVE_ISLANDS.map((art) => ({ ...art, baseUse: 0 })),
     ...byCategory("/map-runtime/archipelago/technology/"),
   ],
+  personal: byCategory("/map-runtime/personal/"),
 };
 
 const hashOf = (id: string) =>

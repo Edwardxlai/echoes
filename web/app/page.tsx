@@ -56,6 +56,19 @@ export default function WorldMapPage() {
       accessibleLabel: `未知海域，${unknown.videoCount} 条待定界内容，直接进入群岛`,
     });
   }
+  const personalMapItem = itemByEntity.get("personal");
+  if (personalMapItem) {
+    items.push({
+      id: personalMapItem.id as WorldRegionId,
+      title: "我的岛屿",
+      meta: "想法与足迹，只你自己看得到",
+      desc: "一片私人海域，停泊着你留下的想法与走过的足迹。",
+      route: personalMapItem.route,
+      routeLabel: "进入我的岛屿",
+      echo: false,
+      accessibleLabel: "我的岛屿，想法与足迹的私人海域，直接进入群岛",
+    });
+  }
 
   return (
     <main className="mapPage mapPage--world">
