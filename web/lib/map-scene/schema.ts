@@ -2,6 +2,7 @@ export type WorldRegionId =
   | "region-eco"
   | "region-his"
   | "region-tech"
+  | "region-life"
   | "region-unknown"
   | "region-soc"
   | "region-sci"
@@ -14,7 +15,7 @@ export interface WorldCameraPreset {
 
 export interface WorldRegionManifest {
   id: WorldRegionId;
-  entityId: "eco" | "his" | "tech";
+  entityId: "eco" | "his" | "tech" | "life";
   anchor: [number, number, number];
   hitSize: [number, number];
   rippleAnchor: [number, number];
@@ -29,7 +30,7 @@ export type WorldExpansionIslandState = "locked" | "available" | "hidden";
 export interface WorldExpansionIslandManifest {
   id: string;
   regionId: WorldRegionId;
-  categoryId: "unknown" | "soc" | "sci" | "personal";
+  categoryId: "unknown" | "soc" | "sci" | "personal" | "life";
   state: WorldExpansionIslandState;
   position: [number, number, number];
   size: [number, number];

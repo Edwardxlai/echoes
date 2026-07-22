@@ -10,7 +10,7 @@ import { HeroInput } from "@/components/map/HeroInput";
 
 export const dynamic = "force-dynamic";
 
-const WORLD_REGION_CATEGORY_IDS = new Set(["eco", "his", "tech"]);
+const WORLD_REGION_CATEGORY_IDS = new Set(["eco", "his", "tech", "life"]);
 
 export default function WorldMapPage() {
   const itemByEntity = new Map(WORLD_SCENE.items.map((item) => [item.entityId, item]));

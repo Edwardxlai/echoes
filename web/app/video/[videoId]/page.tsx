@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation";
-import { getCategory, getCollection, getVideo } from "@/lib/data";
+import { getCollection, getVideo } from "@/lib/data";
 import {
-  getAsset, getCollectionRow, getParsedVideo, isMappedRegionCategory, listCollections,
+  getAsset, getCollectionRow, getParsedVideo, isMappedRegionCategory,
 } from "@/lib/server/store";
-import { MISC_COLLECTION, type CategoryId } from "@/lib/server/pipeline";
 import { AnalysisRenderer } from "@/components/reader/AnalysisRenderer";
 import { CognitiveExpansionBlock } from "@/components/reader/CognitiveExpansionBlock";
-import { MoveControl, type MoveTargetCategory } from "@/components/reader/MoveControl";
+import { ShareButton } from "@/components/reader/ShareButton";
 import { FootprintTrack } from "@/components/reader/FootprintTrack";
 import { ThoughtBar } from "@/components/reader/ThoughtBar";
 import { CommentHeatmap } from "@/components/reader/CommentHeatmap";
@@ -14,8 +13,6 @@ import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
 import { BackLink } from "@/components/nav/BackLink";
 import { createArgumentDispatch } from "@/lib/analysis-contract";
 import { getSampleReader } from "@/lib/reader/sample-readers";
-
-const CONTINENT_IDS = ["eco", "his", "tech"] as const;
 
 export const dynamic = "force-dynamic";
 
@@ -49,25 +46,7 @@ export default async function VideoPage({
     Boolean
   );
 
-  // 「移动」只给真实解析视频，且 mix 合集（创作者策展镜像）整组归类，单集不给挪
   const asset = parsed ? getAsset(videoId) : null;
-  const movable =
-    !!asset &&
-    (!asset.collectionId ||
-      asset.collectionId.startsWith("tc-") ||
-      asset.collectionId.startsWith("misc-"));
-  const moveTargets: MoveTargetCategory[] | null = movable
-    ? CONTINENT_IDS.map((cid: CategoryId) => ({
-        id: cid,
-        name: getCategory(cid)?.name ?? cid,
-        collections: [
-          { id: MISC_COLLECTION[cid].id, name: "散篇集", misc: true },
-          ...listCollections(cid)
-            .filter((c) => c.id.startsWith("tc-"))
-            .map((c) => ({ id: c.id, name: c.name, misc: false })),
-        ],
-      }))
-    : null;
   const currentCategoryId =
     asset && isMappedRegionCategory(asset.bigCategoryId) ? asset.bigCategoryId : null;
 
@@ -129,14 +108,15 @@ export default async function VideoPage({
               <span aria-hidden="true">↗</span>
             </a>
           )}
-          {moveTargets && (
-            <MoveControl
-              assetId={video.id}
-              currentCategoryId={currentCategoryId}
-              currentCollectionId={parsed?.collectionId ?? null}
-              targets={moveTargets}
-            />
-          )}
+          <ShareButton
+            videoId={video.id}
+            hook={coreQuestion}
+            title={video.title}
+            creator={video.creator}
+            duration={video.duration}
+            cover={parsed?.cover ?? ""}
+            topics={heat?.topics.map((t) => ({ label: t.label, heat: t.heat })) ?? []}
+          />
         </span>
       </div>
 

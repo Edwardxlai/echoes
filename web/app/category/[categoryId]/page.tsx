@@ -26,8 +26,9 @@ const REGION_NUMBER: Record<string, string> = {
   eco: "01",
   his: "02",
   tech: "03",
-  soc: "04",
-  sci: "05",
+  life: "04",
+  soc: "05",
+  sci: "06",
 };
 const REGION_ASPECT_RATIO: Record<string, number> = {
   eco: 1672 / 941,
@@ -139,7 +140,10 @@ export default async function RegionMapPage({
             />
           }
           stageBackground={
-            categoryId === "eco" || categoryId === "his" || categoryId === "tech" ? (
+            categoryId === "eco" ||
+            categoryId === "his" ||
+            categoryId === "tech" ||
+            categoryId === "life" ? (
               <div className="regionStageWater">
                 <RegionWaterCanvas />
               </div>

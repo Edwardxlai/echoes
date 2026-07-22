@@ -164,5 +164,32 @@ export const WORLD_MANIFEST: WorldSceneManifest = {
         },
       },
     },
+    {
+      // 日常大陆（美妆 / 做饭 / 生活小视频）——独立扩展岛。位置暂放主岛群上方外海，
+      // 待日常美术到位后按主视觉微调 position/anchor/focus；资源先复用 island-a 占位。
+      id: "life-island",
+      regionId: "region-life",
+      categoryId: "life",
+      state: "available",
+      position: [0, 24, 0],
+      size: [34, 19.79],
+      anchor: [0, 24, 3.4],
+      hitSize: [30, 17],
+      focus: { target: [0, 22], zoomRatio: 1.34 },
+      assets: {
+        // 日常美术到位后：新增 /map-runtime/life/life-world-region-terrain-v01.png
+        // 并把它填回这里的 flatTerrain（与未知海域/我的岛同款）。在此之前留空，
+        // 回落到下面 island-a 的占位图层栈，保证岛能先渲染出来、可点进 /category/life。
+        terrain: `${RUNTIME}/expansion/island-a/terrain/world_expansion-island-a_terrain_default_lod1_v01.webp`,
+        contactShadow: `${RUNTIME}/expansion/island-a/terrain/world_expansion-island-a_contact-shadow_default_lod1_v01.webp`,
+        height: `${RUNTIME}/expansion/island-a/terrain/world_expansion-island-a_height_default_lod1_v01.webp`,
+        mask: `${RUNTIME}/expansion/island-a/terrain/world_expansion-island-a_mask_default_lod1_v01.webp`,
+        coast: {
+          shallow: `${RUNTIME}/expansion/island-a/coast/world_expansion-island-a_coast-shallow_default_lod1_v01.webp`,
+          wetContact: `${RUNTIME}/expansion/island-a/coast/world_expansion-island-a_coast-wet_default_lod1_v01.webp`,
+          foam: `${RUNTIME}/expansion/island-a/coast/world_expansion-island-a_coast-foam_default_lod1_v01.webp`,
+        },
+      },
+    },
   ],
 };

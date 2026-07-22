@@ -159,6 +159,7 @@ const ACCENT_VAR: Record<string, string> = {
   eco: "var(--map-region-eco-line)",
   his: "var(--map-region-his-line)",
   tech: "var(--map-region-tech-line)",
+  life: "var(--map-region-life-line)",
 };
 
 const LAND_PATHS: Record<string, string> = {

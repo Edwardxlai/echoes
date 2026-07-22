@@ -41,6 +41,9 @@
   --map-region-tech:#bfd5e5;    /* 浅蓝 */
   --map-region-tech-light:#dce9f0;
   --map-region-tech-line:#7f9fb8;
+  --map-region-life:#f0cdb8;    /* 暖橙（日常） */
+  --map-region-life-light:#f8e3d6;
+  --map-region-life-line:#c79378;
   --map-foliage:#739778;
   --map-foliage-dark:#57775d;
   --map-rock:#b7ad99;

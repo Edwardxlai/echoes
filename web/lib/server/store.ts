@@ -97,13 +97,18 @@ export interface CollectionRow {
   createdAt: string;
 }
 
-export type MappedRegionCategoryId = "eco" | "his" | "tech";
+export type MappedRegionCategoryId = "eco" | "his" | "tech" | "life";
 
-/** 只有这三个大类拥有世界地图下的独立区域与区域内合集。 */
+/** 只有这几个大类拥有世界地图下的独立区域与区域内合集。 */
 export function isMappedRegionCategory(
   categoryId: string | null | undefined
 ): categoryId is MappedRegionCategoryId {
-  return categoryId === "eco" || categoryId === "his" || categoryId === "tech";
+  return (
+    categoryId === "eco" ||
+    categoryId === "his" ||
+    categoryId === "tech" ||
+    categoryId === "life"
+  );
 }
 
 const DATA_DIR = join(process.cwd(), "data");
@@ -501,7 +506,7 @@ export function listUnknownSeaAssets(): SourceAsset[] {
     .prepare(
       `SELECT * FROM source_assets
        WHERE status = 'analyzed'
-         AND (bigCategoryId IS NULL OR bigCategoryId NOT IN ('eco', 'his', 'tech'))
+         AND (bigCategoryId IS NULL OR bigCategoryId NOT IN ('eco', 'his', 'tech', 'life'))
        ORDER BY createdAt`
     )
     .all();

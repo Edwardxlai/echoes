@@ -160,6 +160,60 @@
   transition:padding .12s}
 .thoughtSend:hover:not(:disabled){border-bottom-width:2px;padding-bottom:4px}
 .thoughtSend:disabled{color:var(--ink-3);border-bottom-color:var(--rule);cursor:default}
+/* ---------- 分享：入口按钮（与「查看原视频」同级同色，替换原「移动」） ---------- */
+.shareBtn{border:0;background:none;padding:0 2px;font-family:var(--sans);font-size:12px;
+  letter-spacing:.04em;color:var(--ink-3);cursor:pointer;transition:color .18s}
+.shareBtn:hover{color:var(--ink)}
+.shareBtn:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+
+/* ---------- 分享：弹层 + 卡片（热议卡，9:16，html-to-image 截图对象即 .scCard） ---------- */
+.shareOverlay{position:fixed;inset:0;z-index:100;background:rgba(28,26,22,.4);
+  display:flex;align-items:center;justify-content:center;padding:28px 20px;overflow-y:auto}
+.shareSheet{display:flex;flex-direction:column;align-items:center;gap:18px;margin:auto}
+
+.scCard{width:376px;max-width:100%;background:var(--bg);border-radius:24px;padding:34px 32px 30px;
+  display:flex;flex-direction:column;white-space:normal;box-shadow:0 24px 60px -30px rgba(28,26,22,.32)}
+.scLogo{width:72px;height:auto;display:block;margin-bottom:24px}
+.scHook{font-family:var(--serif);font-weight:700;font-size:29px;line-height:1.28;
+  letter-spacing:.005em;color:#3a352d;margin:0 0 28px;text-wrap:balance}
+.scChartLab{font-family:var(--sans);font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:18px}
+.scBars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end;height:120px}
+.scBar{display:flex;justify-content:center;align-items:flex-end;height:100%}
+.scCol{width:26px;border-radius:5px 5px 2px 2px;background:#ddd8cd}
+.scBar.b1 .scCol{background:var(--amber)}
+.scBar.b2 .scCol{background:#c9b083}
+.scBar.b3 .scCol{background:#d3cec2}
+.scXaxis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start;
+  border-top:1px solid var(--rule);padding-top:14px;margin-bottom:24px}
+.scXaxis span{font-family:var(--sans);font-size:14.5px;font-weight:500;line-height:1.4;color:var(--ink);
+  text-align:center;overflow-wrap:break-word;word-break:break-word}
+.scSrc{display:flex;gap:13px;align-items:center;background:var(--bg-soft);
+  border:1px solid var(--rule);border-radius:14px;padding:11px 13px;margin-bottom:18px}
+.scCover{width:56px;height:72px;object-fit:cover;border-radius:8px;flex:none;background:var(--bg-soft)}
+.scCover--ph{background:linear-gradient(135deg,var(--rule),var(--bg-soft))}
+.scMeta{min-width:0}
+.scTitle{font-family:var(--sans);font-size:14px;font-weight:600;line-height:1.34;
+  color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.scBy{margin-top:6px;font-family:var(--sans);font-size:12px;color:var(--ink-3)}
+.scCta{display:flex;align-items:center;gap:14px;background:var(--bg-soft);
+  border:1px solid var(--rule);border-radius:16px;padding:14px 16px}
+.scQr{width:66px;height:66px;flex:none;border-radius:6px;display:block}
+.scQr--ph{background:var(--rule)}
+.scCtaText{display:flex;flex-direction:column;gap:4px;min-width:0}
+.scCtaTitle{font-family:var(--sans);font-size:15px;font-weight:700;color:var(--ink);letter-spacing:.01em}
+.scCtaSub{font-family:var(--sans);font-size:12px;color:var(--ink-3);line-height:1.4}
+
+.shareActions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.shareAct{font-family:var(--sans);font-size:13.5px;padding:11px 22px;border-radius:11px;
+  border:1px solid var(--rule);background:var(--bg);color:var(--ink);cursor:pointer;
+  transition:background .15s,opacity .15s}
+.shareAct:hover:not(:disabled){background:var(--bg-soft)}
+.shareAct--primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.shareAct--primary:hover:not(:disabled){background:#000;opacity:.92}
+.shareAct--ghost{border-color:transparent;color:var(--ink-3)}
+.shareAct:disabled{opacity:.5;cursor:default}
+.shareAct:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
 .colophon{margin-top:88px;text-align:center;font-family:var(--mono);font-size:11px;
   color:var(--ink-3);letter-spacing:.3em;text-indent:.3em}
 

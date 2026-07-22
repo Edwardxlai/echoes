@@ -759,8 +759,8 @@ export async function classifyTemplate(
 }
 
 /* ---------- L3 大类归属（方案文档 §二 L3：喂 L1 结构化摘要，temperature 0 保稳定） ---------- */
-export type CategoryId = "eco" | "his" | "tech" | "soc" | "sci";
-const CATEGORY_IDS: ReadonlySet<string> = new Set(["eco", "his", "tech", "soc", "sci"]);
+export type CategoryId = "eco" | "his" | "tech" | "soc" | "sci" | "life";
+const CATEGORY_IDS: ReadonlySet<string> = new Set(["eco", "his", "tech", "soc", "sci", "life"]);
 
 /** 各大类"散篇"合集：单条/多链接解析的视频落这里（mix 合集自成一组）。 */
 export const MISC_COLLECTION: Record<CategoryId, { id: string; name: string }> = {
@@ -769,22 +769,25 @@ export const MISC_COLLECTION: Record<CategoryId, { id: string; name: string }> =
   tech: { id: "misc-tech", name: "科技 · 散篇集" },
   soc: { id: "misc-soc", name: "社会思想 · 散篇集" },
   sci: { id: "misc-sci", name: "自然科学 · 散篇集" },
+  life: { id: "misc-life", name: "日常 · 散篇集" },
 };
 
-const CLASSIFY_SYS = `你是"回响"的内容归类引擎。把一条视频归入五大类之一：
+const CLASSIFY_SYS = `你是"回响"的内容归类引擎。把一条视频归入六大类之一：
 - eco 经济：市场、货币、产业、政策、商业与资本
 - his 历史：史实、人物、朝代、事件与史观叙事
 - tech 科技：人类创造和应用的工具、工程、产品、制造与科技产业
 - soc 社会思想：社会学、政治、法律、教育、性别、公共议题、制度与群体关系
 - sci 自然科学：数学、物理、化学、生物、天文、地理、生态、疾病机理与自然规律
+- life 日常：美妆护肤、美食做饭、穿搭时尚、家居收纳、旅行、健身作息、亲子、生活方式与日常记录
 
 判定依据按固定优先级依次比较（保证同一内容重复判定不跳类）：
 ①核心问题在问什么 ②结论落点落在哪 ③主要篇幅讲什么 ④标题与简介。
 当 tech 与 sci 冲突时，以最终知识落点判定：解释“世界或生命为什么这样运作、规律是什么”归 sci；解释“工具如何设计、制造、使用或产业化”归 tech。疾病机理归 sci，诊断设备、治疗技术和制药工程归 tech；AI 的纯数学原理归 sci，模型架构、训练工程、芯片和产品归 tech。
+当 life 与 sci/tech 冲突时，以落点判定：教「怎么用、怎么做、怎么过日子」（护肤步骤、菜谱、穿搭）归 life；讲「为什么这样运作的科学原理」（成分的化学机理、食材的营养学原理）归 sci。美妆护肤、美食做饭、穿搭家居这类生活实践一律优先归 life，不要因为提到成分或原理就塞进 sci。
 看"用户获得的知识类型"而非表面关键词：讲 AI 发展史、落点在技术演进的归 tech；讲 AI 对就业结构与劳动关系的影响、落点在制度和群体关系的归 soc；讲疾病机理、生态系统或自然规律的归 sci；讲雷曼崩盘、落点在金融机制的归 eco，即使满篇是"历史"。
-确实不属于五类的输出 "none"，不要硬塞进最接近的类。
+确实不属于六类的输出 "none"，不要硬塞进最接近的类。
 
-只输出 JSON：{"primary":"eco|his|tech|soc|sci|none","secondary":"eco|his|tech|soc|sci|none","confidence":"high|mid|low","rationale":"≤50字"}`;
+只输出 JSON：{"primary":"eco|his|tech|soc|sci|life|none","secondary":"eco|his|tech|soc|sci|life|none","confidence":"high|mid|low","rationale":"≤50字"}`;
 
 export async function classifyCategory(a: AnalysisResult, title: string): Promise<CategoryId | null> {
   const input = JSON.stringify({

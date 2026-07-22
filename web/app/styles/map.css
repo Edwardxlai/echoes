@@ -293,6 +293,7 @@
 .mapSearchDrop__dot--eco{border-color:var(--map-region-eco-line);background:var(--map-region-eco-light)}
 .mapSearchDrop__dot--his{border-color:var(--map-region-his-line);background:var(--map-region-his-light)}
 .mapSearchDrop__dot--tech{border-color:var(--map-region-tech-line);background:var(--map-region-tech-light)}
+.mapSearchDrop__dot--life{border-color:var(--map-region-life-line);background:var(--map-region-life-light)}
 .mapSearchHit{display:flex;align-items:baseline;gap:10px;padding:7px 10px;border-radius:6px}
 .mapSearchHit:hover,.mapSearchHit:focus-visible{background:var(--bg-soft);outline:none}
 .mapSearchHit b{font:500 13px/1.4 var(--serif);color:var(--ink)}
@@ -926,6 +927,7 @@
 .terrain-line-eco{stroke:var(--map-region-eco-line)}
 .terrain-line-his{stroke:var(--map-region-his-line)}
 .terrain-line-tech{stroke:var(--map-region-tech-line)}
+.terrain-line-life{stroke:var(--map-region-life-line)}
 
 .terrain-region__visual,
 .landmark__visual,

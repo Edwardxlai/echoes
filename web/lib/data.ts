@@ -531,6 +531,7 @@ export const COLLECTIONS: Record<string, Collection> = {
         gap: "通胀的正对面，是同样棘手、却很少被并置来看的通缩。",
         fill: "通缩不是「通胀变小」，而是物价持续下跌、自我强化的另一套螺旋：企业利润缩水、居民推迟消费、债务的实际负担越滚越重，日本「失去的三十年」是最常被援引的样本——它也解释了央行为何宁愿容忍温和通胀，也要极力躲开通缩。",
         focus: "另一套螺旋",
+        searchTerms: ["通缩螺旋", "债务通缩", "失去的三十年"],
       },
     },
   },
@@ -575,6 +576,7 @@ export const COLLECTIONS: Record<string, Collection> = {
         gap: "被演义重写的远不止赤壁一战，而是整部三国的叙事骨架。",
         fill: "官渡、夷陵这些关键战役同样在演义里被大幅戏剧化，而三国故事其实叠着三层文本：陈寿《三国志》的简笔正史、裴松之注补进的大量异闻、罗贯中《演义》的再创作。分清你读到的是哪一层，才知道哪些「常识」本就是叙事的产物。",
         focus: "三层文本",
+        searchTerms: ["裴松之注", "三国志 陈寿", "官渡之战 正史"],
       },
     },
   },
@@ -613,6 +615,7 @@ export const COLLECTIONS: Record<string, Collection> = {
         gap: "「会不会被取代」这道题，上一轮自动化其实早已跑完一遍完整答案。",
         fill: "上世纪八十年代起，工业机器人在汽车、电子产线大规模上岗，结果既非「工人全下岗」也非「岗位原样保留」：总就业没崩，但岗位结构被劈成两头——高技能的调试运维和低薪的边角环节，中间的熟练工被掏空。这条「极化」曲线，正是判断 AI 这轮冲击的现成参照。",
         focus: "劈成两头",
+        searchTerms: ["就业极化", "工业机器人 就业", "自动化 岗位替代"],
       },
     },
   },
@@ -624,6 +627,7 @@ export const CATEGORIES: Record<string, Category> = {
   tech: { id: "tech", name: "科技", collectionIds: ["c4"], echoCount: 2, mapItemId: "region-tech" },
   soc: { id: "soc", name: "社会思想", collectionIds: [], echoCount: 0, mapItemId: "region-soc" },
   sci: { id: "sci", name: "自然科学", collectionIds: [], echoCount: 0, mapItemId: "region-sci" },
+  life: { id: "life", name: "日常", collectionIds: [], echoCount: 0, mapItemId: "region-life" },
 };
 
 export const CATEGORY_LIST = Object.values(CATEGORIES);

@@ -226,6 +226,21 @@ export const WORLD_SCENE: MapScene = {
       cameraZoom: 1.34,
       hitBox: { width: 150, height: 82, mobileWidth: 104, mobileHeight: 68 },
     }),
+    // 日常大陆：作为一座独立扩展岛承载（承载配置在 map-scene/manifests/world.ts）。
+    // item.id 必须等于该岛 manifest 的 regionId「region-life」，home 页才认得这座岛。
+    item({
+      id: "region-life",
+      entityType: "category",
+      entityId: "life",
+      x: 50,
+      y: 12,
+      // 占位：日常美术到位后换成 /map-runtime/life/... 的日常岛贴图。
+      asset:
+        "/map-runtime/world/expansion/island-a/terrain/world_expansion-island-a_terrain_default_lod1_v01.webp",
+      route: "/category/life",
+      cameraZoom: 1.34,
+      hitBox: { width: 150, height: 82, mobileWidth: 104, mobileHeight: 68 },
+    }),
   ],
 };
 
@@ -302,6 +317,13 @@ export const REGION_SCENES: Record<string, MapScene> = {
     type: "region",
     camera: { position: [50, 50, 88], target: [50, 50, 0], zoom: 1 },
     environment: { asset: "environment/region-sci", effects: ["water", "mist", "parallax"] },
+    items: [],
+  },
+  life: {
+    id: "region-life",
+    type: "region",
+    camera: { position: [50, 50, 88], target: [50, 50, 0], zoom: 1 },
+    environment: { asset: "environment/region-life", effects: ["water", "clouds", "parallax"] },
     items: [],
   },
 };
