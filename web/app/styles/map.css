@@ -159,7 +159,7 @@
   box-shadow:0 8px 28px rgba(55,70,61,.08);
 }
 .worldMasthead .mapInputRow:focus-within{box-shadow:0 10px 32px rgba(80,68,45,.1),0 0 0 2px rgba(217,169,63,.07)}
-.worldMasthead .mapInputRow input{font-size:12.5px}
+.worldMasthead .mapInputRow textarea{font-size:12.5px}
 .worldMasthead .mapInputRow button{
   min-height:34px;
   padding:0 10px 0 13px;
@@ -196,15 +196,20 @@
 }
 .mapInputRow.has-error{border-color:rgba(163,74,50,.52)}
 .mapInputRow__icon{font-size:18px;color:var(--amber);transform:rotate(-45deg)}
-.mapInputRow input{
+.mapInputRow textarea{
   min-width:0;
+  min-height:20px;
+  max-height:96px;
+  padding:1px 0;
   border:0;
   outline:0;
+  resize:none;
+  field-sizing:content;
   background:transparent;
   color:var(--ink);
   font:13px/1.4 var(--sans);
 }
-.mapInputRow input::placeholder{color:var(--ink-3)}
+.mapInputRow textarea::placeholder{color:var(--ink-3)}
 .mapInputRow button{
   display:inline-flex;
   align-items:center;
@@ -237,6 +242,15 @@
 .mapInputMeta__success{color:var(--yes)}
 .mapInputMeta__pending{color:var(--amber)}
 .mapInputMeta__mode{color:var(--amber)}
+
+.mapDedupeSwitch{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;cursor:pointer;color:var(--ink-2)}
+.mapDedupeSwitch input{position:absolute;opacity:0;pointer-events:none}
+.mapDedupeSwitch span{position:relative;width:28px;height:16px;border-radius:999px;background:var(--rule);transition:background-color .15s ease}
+.mapDedupeSwitch span::after{content:"";position:absolute;top:3px;left:3px;width:10px;height:10px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.18);transition:transform .15s ease}
+.mapDedupeSwitch input:checked + span{background:var(--amber)}
+.mapDedupeSwitch input:checked + span::after{transform:translateX(12px)}
+.mapDedupeSwitch input:focus-visible + span{outline:2px solid var(--amber);outline-offset:2px}
+.mapDedupeSwitch input:disabled + span{opacity:.5}
 
 /* 首页搜索：解析条右侧独立「搜索」切换钮 + 结果下拉。
    金色只在切换钮点亮（激活态）时出现，不与地图基调竞争。 */
@@ -966,6 +980,8 @@
 .island__economyArt{filter:drop-shadow(0 5px 7px rgba(76,84,57,.16))}
 .island.island--technology.is-unviewed{--island-opacity:.82;--island-saturation:.72}
 .island__technologyArt{filter:drop-shadow(0 5px 7px rgba(65,72,105,.16))}
+.island.island--daily.is-unviewed{--island-opacity:.84;--island-saturation:.74}
+.island__dailyArt{filter:drop-shadow(0 5px 7px rgba(91,58,68,.17))}
 .island.island--history.is-unviewed{--island-opacity:.84;--island-saturation:.7}
 .island__historyArt{filter:drop-shadow(0 5px 7px rgba(80,69,86,.17))}
 .island.island--unknown.is-unviewed{--island-opacity:.84;--island-saturation:.72}
@@ -983,6 +999,10 @@
 .island.island--technology.is-active{
   transform:translateY(-6px) scale(1.025);
   filter:brightness(1.035) saturate(1.04) drop-shadow(0 10px 10px rgba(65,72,105,.18));
+}
+.island.island--daily.is-active{
+  transform:translateY(-6px) scale(1.025);
+  filter:brightness(1.035) saturate(1.04) drop-shadow(0 10px 10px rgba(91,58,68,.19));
 }
 .island.island--history.is-active{
   transform:translateY(-6px) scale(1.025);
@@ -1174,7 +1194,8 @@
 }
 .regionImageTerrain--eco,
 .regionImageTerrain--tech,
-.regionImageTerrain--his{overflow:visible}
+.regionImageTerrain--his,
+.regionImageTerrain--life{overflow:visible}
 .regionImageTerrain__base{
   z-index:0;
   object-fit:cover;
@@ -1199,7 +1220,26 @@
 .regionImageTerrain__water canvas{display:block}
 .regionImageTerrain--eco .regionImageTerrain__base,
 .regionImageTerrain--tech .regionImageTerrain__base,
-.regionImageTerrain--his .regionImageTerrain__base{z-index:1}
+.regionImageTerrain--his .regionImageTerrain__base,
+.regionImageTerrain--life .regionImageTerrain__base{z-index:1}
+
+.dailyRegionLandmark{
+  position:absolute;
+  z-index:3;
+  height:auto;
+  transform:translate(-50%,-88%);
+  transform-origin:50% 88%;
+  transition:transform .32s cubic-bezier(.16,1,.3,1),opacity .32s,filter .32s;
+  pointer-events:none;
+}
+.dailyRegionLandmark img{
+  object-fit:contain;
+  object-position:50% 100%;
+  filter:drop-shadow(7px 12px 9px rgba(91,58,68,.18));
+}
+.dailyRegionLandmark.is-active{z-index:4;transform:translate(-50%,-92%) scale(1.045)}
+.dailyRegionLandmark.is-hidden{opacity:0;filter:grayscale(1) blur(7px)}
+.dailyRegionLandmark.is-revealing{animation:regionImageLandmarkEmerge 1.5s .12s both cubic-bezier(.16,1,.3,1)}
 .regionImageTerrain__wash{
   position:absolute;
   inset:0;

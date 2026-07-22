@@ -32,9 +32,8 @@ export function EchoBlock({ echo }: { echo: Echo }) {
         </>
       ) : (
         <>
-          <div className="er">
-            ✦ {echo.relation.includes("《") ? echo.relation : `《${echo.targetTitle}》${echo.relation}`}
-          </div>
+          {/* 无 oldSay 的旧数据：只出关系词，标题收进下方溯源行，不再前缀「《标题》关系词」 */}
+          <div className="er">✦ {echo.relation}</div>
           {echo.sentence && <div className="ef">{echo.sentence}</div>}
         </>
       )}

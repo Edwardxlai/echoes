@@ -123,7 +123,8 @@ export default async function ArchipelagoMapPage({
     echo: island.echoCount > 0,
     dim: !island.viewed,
     focusX: island.mapItem.cameraTarget.target[0],
-    focusY: island.mapItem.cameraTarget.target[1],
+    // 岛屿美术绘制在锚点上方；聚焦它的视觉中心，而不是底部落点。
+    focusY: island.mapItem.cameraTarget.target[1] - ARCHIPELAGO_VISUAL_CENTER_Y_OFFSET,
     focusZoom: island.mapItem.cameraTarget.zoom,
     eyebrow: "视频岛屿",
     hitArea: island.mapItem.hitArea,

@@ -1,7 +1,7 @@
 import {
   getAnalysis, getAsset, getTranscript, listRecallSources, saveDispatch,
 } from "@/lib/server/store";
-import { classifyTemplate, type AnalysisResult } from "@/lib/server/pipeline";
+import { classifyTemplate, VIDEO_TYPES, type AnalysisResult } from "@/lib/server/pipeline";
 
 /* 开发用：知音_重构执行计划 Phase 1b——存量真实视频回填模板派发（template/renderData）。
    与 rerun-analysis 不同：不重跑脉络分析，只在既有 backbone 之上另判"用哪张图渲染"。
@@ -22,6 +22,15 @@ export async function POST(request: Request) {
     const analysis = getAnalysis(src.assetId);
     const asset = getAsset(src.assetId);
     if (!analysis || !asset) continue;
+    if (!VIDEO_TYPES.has(analysis.videoType)) {
+      results.push({
+        assetId: src.assetId,
+        title: asset.title.slice(0, 24),
+        from: analysis.videoType,
+        error: "旧骨架类型，请先调用 rerun-analysis 重新判定结构",
+      });
+      continue;
+    }
     if (!only && !all && analysis.dispatch?.template !== "argument") continue;
     const title = asset.title.slice(0, 24);
     const from = analysis.dispatch?.template ?? "argument";

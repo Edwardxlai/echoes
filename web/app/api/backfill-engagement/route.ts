@@ -6,7 +6,12 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const force = new URL(request.url).searchParams.get("force") === "1";
   const assets = listAssets().filter(
-    (asset) => force || !asset.metricsSource || asset.likeCount == null || asset.collectCount == null,
+    (asset) =>
+      force ||
+      !asset.metricsSource ||
+      asset.likeCount == null ||
+      asset.collectCount == null ||
+      asset.commentCount == null,
   );
   const results: { id: string; source: "real" | "mock"; heat: number }[] = [];
   let next = 0;
@@ -17,7 +22,7 @@ export async function POST(request: Request) {
       results.push({
         id: asset.id,
         source: metrics.metricsSource,
-        heat: metrics.likeCount + metrics.collectCount,
+        heat: metrics.commentCount,
       });
     }
   };

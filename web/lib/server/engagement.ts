@@ -17,8 +17,8 @@ export interface EngagementMetrics {
   metricsFetchedAt: string;
 }
 
-export function engagementHeatOf(asset: Pick<SourceAsset, "likeCount" | "collectCount">): number {
-  return Math.max(0, Number(asset.likeCount) || 0) + Math.max(0, Number(asset.collectCount) || 0);
+export function engagementHeatOf(asset: Pick<SourceAsset, "commentCount">): number {
+  return Math.max(0, Number(asset.commentCount) || 0);
 }
 
 function hash32(value: string): number {
@@ -93,7 +93,7 @@ export async function refreshAssetEngagement(assetId: string): Promise<Engagemen
 export async function ensureAssetEngagement(assetId: string): Promise<EngagementMetrics> {
   const asset = getAsset(assetId);
   if (!asset) throw new Error(`asset not found: ${assetId}`);
-  if (asset.metricsSource && asset.likeCount != null && asset.collectCount != null) {
+  if (asset.metricsSource && asset.likeCount != null && asset.collectCount != null && asset.commentCount != null) {
     return {
       likeCount: asset.likeCount,
       collectCount: asset.collectCount,

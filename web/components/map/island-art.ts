@@ -29,6 +29,10 @@ const tech = (file: string, label: string): IslandArt => ({
   href: `/map-runtime/archipelago/technology/misc-tech/${file}`,
   label,
 });
+const daily = (file: string, label: string): IslandArt => ({
+  href: `/map-runtime/archipelago/daily/islands/${file}`,
+  label,
+});
 const unknown = (file: string, label: string): IslandArt => ({
   href: `/map-runtime/archipelago/kit/unknown/parts/${file}`,
   label,
@@ -123,6 +127,29 @@ const TECH_RESERVE_ISLANDS: IslandArt[] = [
   tech("reserve/technology_reserve_biotech_lod1_v01.webp", "生物科技备用岛"),
 ];
 
+/* 日常区美术是一组可跨合集复用的主题岛屿。只使用已经抠好透明通道的 alpha 版本；
+   分配器会优先把尚未出现过的岛分给新视频，保证同一群岛内不重复。 */
+const DAILY_ISLANDS: IslandArt[] = [
+  daily("daily_island_beauty-atelier_alpha_v01.png", "美妆工坊岛"),
+  daily("daily_island_skincare-spa_alpha_v01.png", "护肤疗愈岛"),
+  daily("daily_island_fashion-atelier_alpha_v01.png", "穿搭工坊岛"),
+  daily("daily_island_wellness-kitchen_alpha_v01.png", "健康厨房岛"),
+  daily("daily_island_cozy-home_alpha_v01.png", "温馨居所岛"),
+  daily("daily_island_life-tips-academy_alpha_v01.png", "生活知识岛"),
+  daily("daily_island_hair-care_alpha_v01.png", "秀发护理岛"),
+  daily("daily_island_fragrance-nail_alpha_v01.png", "香氛美甲岛"),
+  daily("daily_island_womens-health_alpha_v01.png", "女性健康岛"),
+  daily("daily_island_emotional-wellness_alpha_v01.png", "情绪疗愈岛"),
+  daily("daily_island_home-care_alpha_v01.png", "家居养护岛"),
+  daily("daily_island_travel-packing_alpha_v01.png", "旅行整装岛"),
+  daily("daily_island_pet-life_alpha_v01.png", "宠物生活岛"),
+  daily("daily_island_reading-hobbies_alpha_v01.png", "阅读兴趣岛"),
+  daily("daily_island_craft-floral_alpha_v01.png", "手作花艺岛"),
+  daily("daily_island_photo-journal_alpha_v01.png", "影像日记岛"),
+  daily("daily_island_social-etiquette_alpha_v01.png", "社交礼仪岛"),
+  daily("daily_island_career-growth_alpha_v01.png", "职场成长岛"),
+];
+
 interface PoolEntry extends IslandArt {
   /** 已有多少条视频固定使用这张图——最少使用优先的基线。 */
   baseUse: number;
@@ -144,6 +171,7 @@ const ISLAND_POOLS: Record<string, PoolEntry[]> = {
     ...TECH_RESERVE_ISLANDS.map((art) => ({ ...art, baseUse: 0 })),
     ...byCategory("/map-runtime/archipelago/technology/"),
   ],
+  life: DAILY_ISLANDS.map((art) => ({ ...art, baseUse: 0 })),
   personal: byCategory("/map-runtime/personal/"),
 };
 

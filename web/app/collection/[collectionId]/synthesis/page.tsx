@@ -5,6 +5,7 @@ import { realCollectionDetail } from "@/lib/server/real-data";
 import { KnowledgeMatrix } from "@/components/reader/KnowledgeMatrix";
 import { CollectionHeat } from "@/components/reader/CollectionHeat";
 import { CollectionThoughts } from "@/components/reader/CollectionThoughts";
+import { CollectionShareButton } from "@/components/reader/CollectionShareButton";
 import { CognitiveExpansionBlock } from "@/components/reader/CognitiveExpansionBlock";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
 import { BackLink } from "@/components/nav/BackLink";
@@ -33,6 +34,7 @@ export default async function CollectionSynthesisPage({
         synthesis: seed.synthesis ?? null,
         cognitiveExpansion: seed.cognitiveExpansion,
         sourceUrl: "",
+        cover: videosOf(collectionId)[0]?.cover ?? "",
       }
     : {
         name: real!.name,
@@ -41,6 +43,7 @@ export default async function CollectionSynthesisPage({
         synthesis: real!.synthesis,
         cognitiveExpansion: real!.cognitiveExpansion ?? undefined,
         sourceUrl: real!.sourceUrl,
+        cover: real!.cover,
       };
 
   const backHref = `/collection/${collectionId}`;
@@ -51,11 +54,10 @@ export default async function CollectionSynthesisPage({
         title: v.title,
         duration: v.duration,
         echoCount: v.nodes.filter((n) => n.echo).length,
-        engagementHeat: (() => {
-          const metrics = mockEngagement(v.id);
-          return metrics.likeCount + metrics.collectCount;
-        })(),
-        sourceUrl: v.sourceUrl,
+        engagementHeat: mockEngagement(v.id).commentCount,
+         sourceUrl: v.sourceUrl,
+         creator: v.creator,
+         cover: v.cover,
       }))
     : real!.islands.map((v) => ({
         id: v.id,
@@ -63,8 +65,17 @@ export default async function CollectionSynthesisPage({
         duration: v.duration,
         echoCount: v.echoCount,
         engagementHeat: v.engagementHeat,
-        sourceUrl: v.sourceUrl || undefined,
-      }));
+         sourceUrl: v.sourceUrl || undefined,
+         creator: v.creator,
+         cover: v.cover,
+       }));
+
+  const creators = [...new Set(videos.map((video) => video.creator).filter(Boolean))];
+  const creatorLabel = creators.length === 1 ? creators[0] : creators.length > 1 ? `${creators.length} 位创作者` : "";
+  const seriesQuestion = collection.synthesis?.seriesQuestion ?? `${collection.name}：这组视频合起来在说什么？`;
+  const episodeLabelById = new Map(
+    collection.synthesis?.episodeLabels?.map((item) => [item.videoId, item.label]) ?? []
+  );
 
   return (
     <div className="doc">
@@ -73,8 +84,8 @@ export default async function CollectionSynthesisPage({
         <BackLink className="backlink" href={backHref}>
           ← &nbsp;返回
         </BackLink>
-        {collection.sourceUrl && (
-          <span className="navR">
+        <span className="navR">
+          {collection.sourceUrl && (
             <a
               className="sourceJump"
               href={collection.sourceUrl}
@@ -84,12 +95,25 @@ export default async function CollectionSynthesisPage({
               <span>查看原合集</span>
               <span aria-hidden="true">↗</span>
             </a>
-          </span>
-        )}
+          )}
+          <CollectionShareButton
+            collectionId={collectionId}
+            hook={seriesQuestion}
+            name={collection.name}
+            creator={creatorLabel}
+            cover={collection.cover}
+            episodes={videos.map((video) => ({
+              title: video.title,
+              label: episodeLabelById.get(video.id),
+              heat: video.engagementHeat,
+              cover: video.cover,
+            }))}
+          />
+        </span>
       </div>
 
       <h1 className="display display--question">
-        {collection.synthesis?.seriesQuestion ?? `${collection.name}：这组视频合起来在说什么？`}
+        {seriesQuestion}
       </h1>
       <div className="dmeta">
         <span>

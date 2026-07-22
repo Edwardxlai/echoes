@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # 抖音合集(mix)工具，用 f2 自造的游客 cookie（无需登录）。两种模式：
 #   枚举合集：python mix_enum.py <mix_id> <out_json_path>
-#     → {"ok":true,"mix_id":"...","videos":[{"aweme_id","desc"}...]}
+#     → {"ok":true,"mix_id":"...","mix_name":"...","cover_url":"...","videos":[{"aweme_id","desc"}...]}
 #   单集反查所属合集：python mix_enum.py --detail <aweme_id> <out_json_path>
 #     → {"ok":true,"mix_id":"...或null","mix_name":"..."}
 import sys, json, asyncio, os
@@ -56,8 +56,22 @@ async def detail():
 async def main():
     h = make_handler("mix")
     videos = []
+    mix_name = ""
+    cover_url = ""
     async for page in h.fetch_user_mix_videos(TARGET_ID, page_counts=20):
         d = page._to_dict()
+        raw = page._to_raw()
+        aweme_list = raw.get("aweme_list") or [] if isinstance(raw, dict) else []
+        first = aweme_list[0] if aweme_list and isinstance(aweme_list[0], dict) else {}
+        mix_info = first.get("mix_info") or first.get("series_info") or {}
+        if not mix_name:
+            mix_name = str(mix_info.get("mix_name") or mix_info.get("series_name") or "")
+            mix_name = mix_name.removeprefix("合集 · ").strip()
+        if not cover_url:
+            cover = mix_info.get("cover_url") or {}
+            urls = cover.get("url_list") or [] if isinstance(cover, dict) else []
+            if urls:
+                cover_url = str(urls[0])
         ids = d.get("aweme_id") or []
         descs = d.get("desc") or []
         if not isinstance(ids, list):
@@ -68,7 +82,13 @@ async def main():
         if len(videos) >= 200:
             break
     with open(OUT, "w", encoding="utf-8") as f:
-        json.dump({"ok": True, "mix_id": TARGET_ID, "videos": videos}, f, ensure_ascii=False)
+        json.dump({
+            "ok": True,
+            "mix_id": TARGET_ID,
+            "mix_name": mix_name,
+            "cover_url": cover_url,
+            "videos": videos,
+        }, f, ensure_ascii=False)
 
 
 try:

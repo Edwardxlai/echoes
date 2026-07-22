@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { collectionsOf, getCategory } from "@/lib/data";
+import { collectionsOf, getCategory, videosOf } from "@/lib/data";
 import { REGION_SCENES, type MapItem } from "@/lib/map-config";
 import { hasRealMapContent, realCollectionsOf } from "@/lib/server/real-data";
 import { MapStage, type HotspotDef } from "@/components/map/MapStage";
@@ -20,6 +20,7 @@ interface LandmarkDef {
   mapItem: MapItem;
   synthesisRoute?: string;
   sourceUrl?: string;
+  cover?: string;
 }
 
 const REGION_NUMBER: Record<string, string> = {
@@ -34,6 +35,7 @@ const REGION_ASPECT_RATIO: Record<string, number> = {
   eco: 1672 / 941,
   his: 1586 / 992,
   tech: 16 / 9,
+  life: 3 / 2,
 };
 
 export default async function RegionMapPage({
@@ -59,6 +61,7 @@ export default async function RegionMapPage({
       mapItem: real.mapItem,
       synthesisRoute: real.hasSynthesis ? `${real.mapItem.route}/synthesis` : undefined,
       sourceUrl: real.sourceUrl || undefined,
+      cover: real.cover || undefined,
     }));
   } else {
     const seedItems = new Map((scene?.items ?? []).map((item) => [item.entityId, item]));
@@ -75,6 +78,7 @@ export default async function RegionMapPage({
           glyphKind: collection.glyphKind,
           mapItem,
           synthesisRoute: collection.synthesis ? `${mapItem.route}/synthesis` : undefined,
+          cover: videosOf(collection.id)[0]?.cover,
         },
       ];
     });
@@ -101,6 +105,8 @@ export default async function RegionMapPage({
     secondaryLabel: landmark.synthesisRoute ? "合集解析" : undefined,
     sourceHref: landmark.sourceUrl,
     sourceLabel: landmark.sourceUrl ? "查看原合集" : undefined,
+    cover: landmark.cover,
+    coverAlt: landmark.cover ? `${landmark.name}合集封面` : undefined,
     echo: landmark.echoCount > 0,
     focusX: landmark.mapItem.x,
     focusY: landmark.mapItem.y,

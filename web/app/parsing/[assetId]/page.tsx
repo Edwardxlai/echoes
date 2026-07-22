@@ -129,14 +129,6 @@ export default function ParsingPage() {
         </div>
       )}
 
-      {/* 解析本就在服务端异步跑，离开这页不影响进度；给个显式退出口，
-         别让人误以为必须守着这页看完 */}
-      {!gone && !failed && (
-        <div className="pwander">
-          <Link className="kfrom" href="/">先去逛逛，待会回来看</Link>
-        </div>
-      )}
-
       {failed && asset && (
         <div className="perr">
           <div className="pt">这条视频没能解析</div>

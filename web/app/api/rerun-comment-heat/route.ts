@@ -4,7 +4,9 @@ import { generateCommentHeat, type AnalysisResult } from "@/lib/server/pipeline"
 /* 开发用：只重跑 L4b 评论热度（mock），从已存的脉络分析生成，
    不碰 backbone / 回响 / 补缺。?asset=<id> 只跑单个；默认全量。逐条串行。 */
 export async function POST(request: Request) {
-  const only = new URL(request.url).searchParams.get("asset");
+  const params = new URL(request.url).searchParams;
+  const only = params.get("asset");
+  const missingOnly = params.get("missing") === "1";
   const results: {
     assetId: string; title: string;
     topics?: number; error?: string;
@@ -15,6 +17,7 @@ export async function POST(request: Request) {
     const analysis = getAnalysis(src.assetId);
     const asset = getAsset(src.assetId);
     if (!analysis || !asset) continue;
+    if (missingOnly && analysis.commentHeat) continue;
     const title = asset.title.slice(0, 20);
 
     const a: AnalysisResult = {

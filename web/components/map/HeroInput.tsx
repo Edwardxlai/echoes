@@ -49,7 +49,8 @@ function Highlight({ text, query }: { text: string; query: string }) {
 
 export function HeroInput({ compact = false }: { compact?: boolean }) {
   const inputId = useId();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const autoParseRef = useRef(false);
   const [mode, setMode] = useState<Mode>("parse");
   const [value, setValue] = useState("");
   const [state, setState] = useState<InputState>("idle");
@@ -59,6 +60,8 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
   /** null = 尚未搜索（无下拉）；[] = 搜过但没命中 */
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [dedupe, setDedupe] = useState(true);
+  const [doneMessage, setDoneMessage] = useState("已提交解析，右下角可查看进度");
 
   const query = value.trim();
 
@@ -94,16 +97,41 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
       setError("先粘贴一条可识别的链接，或点右侧按钮切换到搜索模式");
       return;
     }
+    runParse(value);
+  };
+
+  const runParse = async (target: string, opts?: { overwrite?: boolean }) => {
     setState("submitting");
+    setError("");
     try {
-      await submitParse(value);
+      const r = await submitParse(target, { dedupe, overwrite: opts?.overwrite });
       setValue("");
+      setDoneMessage(
+        "needsConfirm" in r || "needsDuplicateConfirm" in r
+          ? "已加入解析队列，右下角有一项需要确认"
+          : "已提交解析，右下角可查看进度",
+      );
       setState("done");
     } catch (e) {
       setState("error");
       setError((e as Error).message || "解析失败，稍后再试");
     }
   };
+
+  useEffect(() => {
+    if (autoParseRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get("parse")?.trim() ?? "";
+    if (params.get("autostart") !== "1" || !isLink(target)) return;
+
+    autoParseRef.current = true;
+    setMode("parse");
+    setValue(target);
+    void runParse(target, { overwrite: true });
+    window.history.replaceState(null, "", window.location.pathname);
+    // This intentionally runs once on arrival from the Douyin demo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleMode = () => {
     setNotice("");
@@ -171,10 +199,10 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
                 ↗
               </span>
             )}
-            <input
+            <textarea
               ref={inputRef}
               id={inputId}
-              type="text"
+              rows={1}
               inputMode={mode === "search" ? "text" : "url"}
               value={value}
               onChange={(event) => onChange(event.target.value)}
@@ -183,9 +211,13 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
                   setValue("");
                   setHits(null);
                 }
+                if (event.key === "Enter" && !event.shiftKey && mode === "parse") {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
               }}
               placeholder={
-                mode === "search" ? "搜索已解析的视频…" : "粘贴视频、合集，或一次粘贴多条链接"
+                mode === "search" ? "搜索已解析的视频…" : "粘贴视频、合集，或每行粘贴一条链接"
               }
               aria-describedby={`${inputId}-note`}
               aria-invalid={state === "error"}
@@ -237,12 +269,13 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
         </button>
       </div>
       <div className="mapInputMeta" id={`${inputId}-note`} aria-live="polite">
+          <>
         {state === "error" && <span className="mapInputMeta__error">{error}</span>}
         {state === "submitting" && (
           <span className="mapInputMeta__pending">正在识别链接…合集需要十几秒枚举</span>
         )}
         {state === "done" && (
-          <span className="mapInputMeta__success">已提交解析，右下角可查看进度</span>
+          <span className="mapInputMeta__success">{doneMessage}</span>
         )}
         {state === "idle" && notice && <span className="mapInputMeta__success">{notice}</span>}
         {state === "idle" && !notice && mode === "search" && (
@@ -259,6 +292,20 @@ export function HeroInput({ compact = false }: { compact?: boolean }) {
             <span className="mapInputMeta__sample">试用示例 ↗</span>
           </>
         )}
+        {mode === "parse" && (
+          <label className="mapDedupeSwitch">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={dedupe}
+              disabled={state === "submitting"}
+              onChange={(event) => setDedupe(event.target.checked)}
+            />
+            <span aria-hidden="true" />
+            去重模式
+          </label>
+        )}
+          </>
       </div>
     </div>
   );

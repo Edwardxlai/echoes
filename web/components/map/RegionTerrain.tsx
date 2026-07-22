@@ -97,6 +97,39 @@ const HISTORY_LANDMARKS = [
 const TECHNOLOGY_TERRAIN =
   "/map-runtime/regions/technology/terrain/region_technology_terrain_default_lod1_v03.webp";
 
+const DAILY_TERRAIN =
+  "/map-runtime/regions/daily/terrain/region_daily_terrain_default_lod1_v01.webp";
+
+const DAILY_LANDMARKS = [
+  {
+    x: 46,
+    y: 43,
+    width: 28,
+    aspectRatio: 1536 / 1024,
+    asset: "/map-runtime/regions/daily/landmarks/region_daily_landmark_beauty-skincare_lod1_v01.webp",
+  },
+  {
+    x: 64,
+    y: 46,
+    width: 20,
+    aspectRatio: 1536 / 1024,
+    asset: "/map-runtime/regions/daily/landmarks/region_daily_landmark_life-knowledge_lod1_v01.webp",
+  },
+  {
+    x: 51,
+    y: 72,
+    width: 25,
+    aspectRatio: 1536 / 1024,
+    asset: "/map-runtime/regions/daily/landmarks/region_daily_landmark_fashion-lifestyle_lod1_v01.webp",
+  },
+] as const;
+
+const DAILY_LANDMARK_INDEX_BY_ENTITY: Record<string, number> = {
+  "misc-life": 0,
+  "4fcce52f": 1,
+  "7499f1a2": 2,
+};
+
 const TECHNOLOGY_LANDMARKS = [
   "/map-runtime/regions/technology/landmarks/region_technology_landmark_misc-tech_lod1_v02.webp",
 ] as const;
@@ -461,6 +494,81 @@ function TechnologyRegionTerrain({ landmarks }: { landmarks: RegionLandmark[] })
   );
 }
 
+function DailyRegionTerrain({ landmarks }: { landmarks: RegionLandmark[] }) {
+  const activeId = useContext(MapActiveContext);
+  const discovery = useContext(MapDiscoveryContext);
+  const occupiedVisualIndexes = new Set(
+    landmarks.map(({ item }, index) => DAILY_LANDMARK_INDEX_BY_ENTITY[item.entityId] ?? index)
+  );
+
+  return (
+    <div className="regionImageTerrain regionImageTerrain--life">
+      <Image
+        className="regionImageTerrain__base regionImageTerrain__base--transparent"
+        src={DAILY_TERRAIN}
+        alt=""
+        fill
+        sizes="(max-width: 560px) 145vw, 100vw"
+        preload
+        draggable={false}
+      />
+
+      {landmarks.map(({ item }, index) => {
+        const visualIndex = DAILY_LANDMARK_INDEX_BY_ENTITY[item.entityId] ?? index;
+        const visual = DAILY_LANDMARKS[visualIndex % DAILY_LANDMARKS.length];
+        const landmark = landmarks[index];
+        const isRevealing = landmark ? discovery.revealingIds.has(landmark.item.id) : false;
+        const isDiscovered = landmark
+          ? !discovery.enabled || discovery.discoveredIds.has(landmark.item.id)
+          : true;
+        const isHidden = Boolean(
+          landmark && discovery.enabled && (!discovery.ready || (!isDiscovered && !isRevealing))
+        );
+
+        return (
+          <div
+            key={visual.asset}
+            className={[
+              "dailyRegionLandmark",
+              landmark && activeId === landmark.item.id ? "is-active" : "",
+              isRevealing ? "is-revealing" : "",
+              isHidden ? "is-hidden" : "",
+              landmark ? "is-occupied" : "is-future",
+            ].filter(Boolean).join(" ")}
+            style={{
+              left: `${landmark.item.x}%`,
+              top: `${landmark.item.y}%`,
+              width: `${visual.width}%`,
+              aspectRatio: visual.aspectRatio,
+            }}
+            aria-hidden="true"
+          >
+            <Image src={visual.asset} alt="" fill sizes="(max-width: 560px) 150px, 320px" draggable={false} />
+          </div>
+        );
+      })}
+
+      {DAILY_LANDMARKS.map((visual, index) =>
+        occupiedVisualIndexes.has(index) ? null : (
+          <div
+            key={`future-${visual.asset}`}
+            className="dailyRegionLandmark is-future"
+            style={{
+              left: `${visual.x}%`,
+              top: `${visual.y}%`,
+              width: `${visual.width}%`,
+              aspectRatio: visual.aspectRatio,
+            }}
+            aria-hidden="true"
+          >
+            <Image src={visual.asset} alt="" fill sizes="(max-width: 560px) 150px, 320px" draggable={false} />
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
 function HistoryRegionTerrain({ landmarks }: { landmarks: RegionLandmark[] }) {
   const activeId = useContext(MapActiveContext);
   const discovery = useContext(MapDiscoveryContext);
@@ -587,6 +695,10 @@ export function RegionTerrain({
 
   if (categoryId === "tech") {
     return <TechnologyRegionTerrain landmarks={landmarks} />;
+  }
+
+  if (categoryId === "life") {
+    return <DailyRegionTerrain landmarks={landmarks} />;
   }
 
   const accent = ACCENT_VAR[categoryId] ?? "var(--map-ink-soft)";

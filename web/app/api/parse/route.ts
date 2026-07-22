@@ -7,14 +7,31 @@ import { intakeInput, runAssetPipeline, runGroupPipelines } from "@/lib/server/p
 export async function POST(request: Request) {
   let input = "";
   let expandMix = false;
+  let forceSingle = false;
+  let dedupe = true;
+  let overwrite = false;
   try {
     const body = await request.json();
     input = String(body?.input ?? "");
-    expandMix = !!body?.expandMix; // 单集链接反查所属合集，命中按合集整组解析
+    expandMix = !!body?.expandMix;     // 单集链接反查所属合集，命中按合集整组解析
+    forceSingle = !!body?.forceSingle; // 用户已选「只解析这条」，跳过合集反查
+    dedupe = body?.dedupe !== false;
+    overwrite = !!body?.overwrite;
   } catch {}
 
   try {
-    const intake = await intakeInput(input, { expandMix });
+    const intake = await intakeInput(input, { expandMix, forceSingle, dedupe, overwrite });
+    if (intake.kind === "confirm-mix") {
+      // 反查到这条属于某合集：回给前端问用户；「解析整个合集」按钮直接提交这个合集链接
+      return Response.json({
+        kind: "confirm-mix",
+        mixName: intake.mixName,
+        mixUrl: `https://www.douyin.com/collection/${intake.mixId}`,
+      });
+    }
+    if (intake.kind === "confirm-duplicate") {
+      return Response.json(intake);
+    }
     if (intake.kind === "single") {
       const assetId = intake.asset.id;
       after(() => runAssetPipeline(assetId));

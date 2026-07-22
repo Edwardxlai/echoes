@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   getTrackedJobs,
+  getPendingDecisions,
+  removePendingDecision,
   submitParse,
   untrackParsingJob,
   PARSING_TRACKED_EVENT,
   type TrackedJob,
+  type PendingDecision,
 } from "@/lib/client/parsingTracker";
 
 /* 全局后台解析角标：常驻根 layout，不随页面切换卸载，离开解析等待页
@@ -57,7 +59,6 @@ function entryDone(e: Entry): boolean {
 }
 
 export function ParsingBadge() {
-  const pathname = usePathname();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [open, setOpen] = useState(false);
   const [justDone, setJustDone] = useState<Set<string>>(new Set());
@@ -66,11 +67,15 @@ export function ParsingBadge() {
   const [draft, setDraft] = useState("");
   const [intakeBusy, setIntakeBusy] = useState(false);
   const [intakeErr, setIntakeErr] = useState("");
+  const [dedupe, setDedupe] = useState(true);
+  const [pendingDecisions, setPendingDecisions] = useState<PendingDecision[]>([]);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     const tick = async () => {
+      if (!cancelled) setPendingDecisions(getPendingDecisions());
       const jobs = getTrackedJobs();
       if (jobs.length === 0) {
         if (!cancelled) setEntries([]);
@@ -139,23 +144,28 @@ export function ParsingBadge() {
   useEffect(() => {
     const onTracked = () => {
       setOpen(true);
+      setPendingDecisions(getPendingDecisions());
       tickRef.current();
     };
     window.addEventListener(PARSING_TRACKED_EVENT, onTracked);
     return () => window.removeEventListener(PARSING_TRACKED_EVENT, onTracked);
   }, []);
 
-  const submitIntake = async (event: FormEvent) => {
+  const submitIntake = (event: FormEvent) => {
     event.preventDefault();
-    if (intakeBusy) return;
     if (!/https?:\/\//.test(draft)) {
       setIntakeErr("先粘贴一条可识别的链接");
       return;
     }
+    runIntake(draft);
+  };
+
+  const runIntake = async (target: string) => {
+    if (intakeBusy) return;
     setIntakeBusy(true);
     setIntakeErr("");
     try {
-      await submitParse(draft); // 入列即广播，上面的监听会刷新面板
+      await submitParse(target, { dedupe }); // 待确认项也会持久入列并广播
       setDraft("");
     } catch (e) {
       setIntakeErr((e as Error).message || "解析失败，稍后再试");
@@ -164,35 +174,113 @@ export function ParsingBadge() {
     }
   };
 
+  const resolvePending = async (item: PendingDecision, action: "all" | "single" | "overwrite") => {
+    if (resolvingId) return;
+    setResolvingId(item.id);
+    setIntakeErr("");
+    try {
+      const input = item.type === "mix" && action === "all" ? item.mixUrl : item.input;
+      await submitParse(input, {
+        pendingId: item.id,
+        dedupe: item.dedupe,
+        forceSingle: action === "single" || (item.type === "duplicate" && item.forceSingle),
+        overwrite: action === "overwrite",
+      });
+      setPendingDecisions(getPendingDecisions());
+    } catch (e) {
+      setIntakeErr((e as Error).message || "处理失败，稍后再试");
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
   const dismiss = (job: TrackedJob) => {
     untrackParsingJob(job.kind, job.id);
     setEntries((prev) => prev.filter((e) => !(e.job.kind === job.kind && e.job.id === job.id)));
   };
 
-  if (pathname?.startsWith("/parsing")) return null;
-
   const anyPending = entries.some((e) => !entryDone(e));
+  const needsAttention = pendingDecisions.length > 0;
+  const totalItems = entries.length + pendingDecisions.length;
 
   return (
     <div className={`pbadge${open ? " open" : ""}`}>
       <div className="pbadge__dropdown">
         <form className="pbadge__intake" onSubmit={submitIntake}>
-          <input
-            type="text"
+          <textarea
+            rows={2}
             inputMode="url"
             value={draft}
             onChange={(event) => {
               setDraft(event.target.value);
               if (intakeErr) setIntakeErr("");
             }}
-            placeholder="粘贴视频、合集或多条链接"
+            placeholder="粘贴视频、合集，或每行一条链接"
             aria-label="视频或合集链接"
             disabled={intakeBusy}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
           />
           <button type="submit" disabled={intakeBusy}>
             {intakeBusy ? "解析中…" : "解析 →"}
           </button>
         </form>
+        <label className="pbadge__dedupe">
+          <input
+            type="checkbox"
+            role="switch"
+            checked={dedupe}
+            disabled={intakeBusy}
+            onChange={(event) => {
+              setDedupe(event.target.checked);
+            }}
+          />
+          <span aria-hidden="true" />
+          <b>去重模式</b>
+          <small>{dedupe ? "重复内容先确认再覆盖" : "允许保留重复内容"}</small>
+        </label>
+        {pendingDecisions.map((item) => (
+          <section className={`pbadge__decision pbadge__decision--${item.type}`} aria-live="polite" key={item.id}>
+            <span className="pbadge__decisionFlag">需要确认</span>
+            <span className="pbadge__decisionKind">{item.type === "mix" ? "检测到所属合集" : "发现重复内容"}</span>
+            <strong>
+              {item.type === "mix"
+                ? `《${item.mixName || "未命名合集"}》`
+                : `《${item.existingTitle || "未命名视频"}》`}
+            </strong>
+            <p>
+              {item.type === "mix"
+                ? "请选择本次解析范围。"
+                : `这条视频已经解析过${item.duplicateCount > 1 ? `，本次输入共有 ${item.duplicateCount} 条重复` : ""}，旧结果尚未改动。`}
+            </p>
+            <div className="pbadge__decisionBtns">
+              {item.type === "mix" ? (
+                <>
+                  <button type="button" className="is-primary" disabled={!!resolvingId} onClick={() => resolvePending(item, "all")}>解析整个合集</button>
+                  <button type="button" disabled={!!resolvingId} onClick={() => resolvePending(item, "single")}>只解析这条</button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="is-danger" disabled={!!resolvingId} onClick={() => resolvePending(item, "overwrite")}>确认覆盖</button>
+                  <button
+                    type="button"
+                    disabled={!!resolvingId}
+                    onClick={() => {
+                      removePendingDecision(item.id);
+                      setPendingDecisions(getPendingDecisions());
+                    }}
+                  >
+                    保留旧内容
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+        ))}
         {intakeErr && <span className="pbadge__intakeErr">{intakeErr}</span>}
         {entries.map((e) => {
           const key = `${e.job.kind}:${e.job.id}`;
@@ -297,20 +385,20 @@ export function ParsingBadge() {
 
       <button
         type="button"
-        className="pbadge__pill"
+        className={`pbadge__pill${needsAttention ? " pbadge__pill--warning" : ""}`}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        {entries.length === 0 ? (
+        {totalItems === 0 ? (
           <>
             <span className="pbadge__plus" aria-hidden="true">＋</span>
             <span className="pbadge__label">解析</span>
           </>
         ) : (
           <>
-            <span className={`pbadge__dot${anyPending ? " pbadge__dot--pulse" : ""}`} aria-hidden="true" />
-            <span className="pbadge__label">{anyPending ? "解析中" : "已完成"}</span>
-            <span className="pbadge__count">{entries.length}</span>
+            <span className={`pbadge__dot${anyPending || needsAttention ? " pbadge__dot--pulse" : ""}`} aria-hidden="true" />
+            <span className="pbadge__label">{needsAttention ? "待确认" : anyPending ? "解析中" : "已完成"}</span>
+            <span className="pbadge__count">{totalItems}</span>
           </>
         )}
         <span className="pbadge__caret" aria-hidden="true">▾</span>

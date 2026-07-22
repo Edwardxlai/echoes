@@ -11,6 +11,7 @@ import {
   listUnknownSeaAssets,
   type CollectionRow, type SourceAsset,
 } from "./store";
+import { engagementHeatOf } from "./engagement";
 import type { Synthesis, CognitiveExpansion } from "@/lib/data";
 import type { CommentHeat } from "@/lib/reader/comment-heat";
 
@@ -21,14 +22,14 @@ const REGION_SLOTS = [
   { x: 34, y: 48 }, { x: 66, y: 56 }, { x: 50, y: 30 }, { x: 28, y: 68 },
   { x: 72, y: 34 }, { x: 46, y: 72 }, { x: 60, y: 44 }, { x: 38, y: 26 },
 ];
-/* eco 槽位带手调卡片偏移（labelOffset，相对建筑脚底）：卡片落各自建筑正下方空地，
+/* eco 槽位带手调卡片偏移（labelOffset，相对建筑脚底）：卡片按周边留白放在建筑上方或下方，
    不压建筑本体、不与邻卡挤靠；镜头聚焦仍对准建筑坐标。 */
 interface EcoSlot { x: number; y: number; labelOffset: [number, number, number] }
 interface IslandSlot { x: number; y: number; labelOffset?: [number, number, number] }
 const ECONOMY_REGION_SLOT_BY_ID: Record<string, EcoSlot> = {
   "misc-eco": { x: 31.7, y: 62.5, labelOffset: [-2, 3, 0] },
   da2e1ad3: { x: 48.2, y: 38.2, labelOffset: [0, 2.6, 0] },
-  b9702449: { x: 70.5, y: 35.8, labelOffset: [2, 2.2, 0] },
+  b9702449: { x: 70.5, y: 35.8, labelOffset: [0, -24, 0] },
 };
 /** 表外的新合集（自动聚类等）顶上"未来建筑"的位置——
     与 RegionTerrain 的 ECONOMY_FUTURE_SLOTS 同坐标同序，美术侧按同序换成对应建筑。 */
@@ -41,6 +42,19 @@ const TECHNOLOGY_REGION_SLOTS = [
   { x: 34.2, y: 56.2 }, { x: 59.3, y: 70.7 }, { x: 41.1, y: 20.6 },
   { x: 23.4, y: 38.6 }, { x: 85.6, y: 38.9 }, { x: 84.3, y: 68.9 },
 ];
+const DAILY_REGION_SLOTS: EcoSlot[] = [
+  { x: 47.5, y: 43, labelOffset: [0, 3, 0] },
+  { x: 64, y: 46, labelOffset: [0, 3, 0] },
+  { x: 51.4, y: 74.5, labelOffset: [0, 3, 0] },
+];
+// Daily collections need stable semantic homes instead of inheriting creation
+// order. This keeps the makeup series at the fashion court, skincare guidance
+// at the pavilion, and daily miscellany at the beauty conservatory.
+const DAILY_REGION_SLOT_BY_ID: Record<string, EcoSlot> = {
+  "7499f1a2": DAILY_REGION_SLOTS[2],
+  "4fcce52f": DAILY_REGION_SLOTS[1],
+  "misc-life": DAILY_REGION_SLOTS[0],
+};
 const ISLAND_SLOTS = [
   { x: 30, y: 44 }, { x: 60, y: 32 }, { x: 72, y: 62 }, { x: 44, y: 60 },
   { x: 54, y: 42 }, { x: 26, y: 28 }, { x: 78, y: 38 }, { x: 38, y: 76 },
@@ -53,6 +67,8 @@ const MISC_ECO_COLLECTION_ID = "misc-eco";
 const ECONOMY_SERIES_COLLECTION_ID = "da2e1ad3";
 const FINANCIAL_BUBBLES_COLLECTION_ID = "tc-25dff437";
 const INTERNET_EPIC_COLLECTION_ID = "b9702449";
+const GOLD_COLLECTION_ID = "89352f66";
+const MISC_LIFE_COLLECTION_ID = "misc-life";
 export const UNKNOWN_SEA_COLLECTION_ID = "unknown-sea";
 const NEW_CHINA_ISLAND_SLOTS = [
   { x: 20, y: 32 }, { x: 47, y: 24 }, { x: 76, y: 35 },
@@ -84,6 +100,12 @@ const FINANCIAL_BUBBLES_ISLAND_SLOTS = [
   { x: 23, y: 27 }, { x: 77, y: 29 },
   { x: 76, y: 70 }, { x: 24, y: 72 },
 ];
+// These five large square artworks need a wide upper arc and a separate lower
+// pair; the generic centre-heavy slots make their silhouettes overlap.
+const GOLD_ISLAND_SLOTS: IslandSlot[] = [
+  { x: 18, y: 36 }, { x: 50, y: 33 }, { x: 82, y: 36 },
+  { x: 69, y: 77 }, { x: 31, y: 77 },
+];
 // “互联网史诗”包含两套不同的岛屿美术。左侧双岛作为明亮产业组，
 // 右侧四岛作为深色公司史组，避免通用槽位把上下两座岛叠成一座。
 const INTERNET_EPIC_ISLAND_SLOTS: IslandSlot[] = [
@@ -93,6 +115,13 @@ const INTERNET_EPIC_ISLAND_SLOTS: IslandSlot[] = [
   { x: 54, y: 70, labelOffset: [0, 10, 0] },
   { x: 84, y: 31, labelOffset: [0, 10, 0] },
   { x: 22, y: 30, labelOffset: [0, 10, 0] },
+];
+// 护肤产品测评的四座横构图岛屿采用四角排布，给透明美术和下方标签都留出独立空间。
+const SKINCARE_REVIEWS_ISLAND_SLOTS: IslandSlot[] = [
+  { x: 23, y: 32, labelOffset: [0, 9, 0] },
+  { x: 77, y: 32, labelOffset: [0, 9, 0] },
+  { x: 76, y: 72, labelOffset: [0, 9, 0] },
+  { x: 24, y: 72, labelOffset: [0, 9, 0] },
 ];
 const UNKNOWN_SEA_ISLAND_SLOTS = [
   { x: 20, y: 34 }, { x: 50, y: 24 }, { x: 80, y: 35 },
@@ -141,16 +170,25 @@ export interface RealLandmark {
   hasSynthesis: boolean;
   /** 原合集链接（仅 mix 合集有；自动聚类合集为空串）。 */
   sourceUrl: string;
+  /** mix 使用平台合集封面；旧数据或自动聚类合集回退首集封面。 */
+  cover: string;
 }
 
 function toLandmark(row: CollectionRow, index: number, overflowIndex: number): RealLandmark {
   const assets = listAssetsByCollection(row.id);
-  const regionSlots = row.categoryId === "tech" ? TECHNOLOGY_REGION_SLOTS : REGION_SLOTS;
+  const regionSlots =
+    row.categoryId === "tech"
+      ? TECHNOLOGY_REGION_SLOTS
+      : row.categoryId === "life"
+        ? DAILY_REGION_SLOTS
+        : REGION_SLOTS;
   const slot =
     row.categoryId === "eco"
       ? (ECONOMY_REGION_SLOT_BY_ID[row.id] ??
         ECONOMY_REGION_OVERFLOW_SLOTS[overflowIndex] ??
         slotAt(regionSlots, index))
+      : row.categoryId === "life"
+        ? (DAILY_REGION_SLOT_BY_ID[row.id] ?? slotAt(regionSlots, index))
       : slotAt(regionSlots, index);
   const { x, y } = slot;
   const labelOffset = (slot as Partial<EcoSlot>).labelOffset;
@@ -165,6 +203,7 @@ function toLandmark(row: CollectionRow, index: number, overflowIndex: number): R
     glyphKind,
     hasSynthesis: getSynthesis(row.id) !== null,
     sourceUrl: row.sourceUrl ?? "",
+    cover: row.cover || assets[0]?.cover || "",
     mapItem: createMapItem({
       id: `landmark-${row.id}`,
       entityType: "collection",
@@ -244,6 +283,8 @@ export interface RealCollectionDetail {
   cognitiveExpansion: CognitiveExpansion | null;
   /** 原合集链接（仅 mix 合集有；自动聚类/未知海域为空串）。 */
   sourceUrl: string;
+  /** mix 使用平台合集封面；缺席时回退首集封面。 */
+  cover: string;
 }
 
 export function realCollectionDetail(collectionId: string): RealCollectionDetail | null {
@@ -261,7 +302,7 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
         sourceUrl: asset.sourceUrl,
         coreQuestion: analysis?.coreQuestion ?? "",
         echoCount: analysis?.echoes?.length ?? 0,
-        engagementHeat: (asset.likeCount ?? 0) + (asset.collectCount ?? 0),
+        engagementHeat: engagementHeatOf(asset),
         viewed: false,
         isNew: isNewAsset(asset),
         contentRich: (analysis?.backbone.length ?? 0) >= 6,
@@ -288,6 +329,7 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
       synthesis: null,
       cognitiveExpansion: null,
       sourceUrl: "",
+      cover: islands[0]?.cover || "",
     };
   }
 
@@ -308,6 +350,10 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
             ? FINANCIAL_BUBBLES_ISLAND_SLOTS
           : row.id === INTERNET_EPIC_COLLECTION_ID
             ? INTERNET_EPIC_ISLAND_SLOTS
+          : row.id === GOLD_COLLECTION_ID
+            ? GOLD_ISLAND_SLOTS
+          : row.id === MISC_LIFE_COLLECTION_ID
+            ? SKINCARE_REVIEWS_ISLAND_SLOTS
         : ISLAND_SLOTS;
   const islands = assets.map((asset, i): RealIsland => {
     const analysis = getAnalysis(asset.id);
@@ -322,7 +368,7 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
       sourceUrl: asset.sourceUrl,
       coreQuestion: analysis?.coreQuestion ?? "",
       echoCount: analysis?.echoes?.length ?? 0,
-      engagementHeat: (asset.likeCount ?? 0) + (asset.collectCount ?? 0),
+      engagementHeat: engagementHeatOf(asset),
       viewed: false, // 观看史 P2 才有；真实视频先按未点亮处理
       isNew: isNewAsset(asset),
       contentRich: (analysis?.backbone.length ?? 0) >= 6,
@@ -365,5 +411,6 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
     synthesis: getSynthesis(row.id),
     cognitiveExpansion,
     sourceUrl: row.sourceUrl ?? "",
+    cover: row.cover || islands[0]?.cover || "",
   };
 }

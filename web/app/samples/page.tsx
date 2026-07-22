@@ -2,7 +2,8 @@ import Link from "next/link";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
 import { BackLink } from "@/components/nav/BackLink";
 import { getAsset } from "@/lib/server/store";
-import { getCollection, getVideo, videosOf } from "@/lib/data";
+import { realCollectionDetail } from "@/lib/server/real-data";
+import { getVideo } from "@/lib/data";
 import { getSampleReader, SAMPLE_TEMPLATES } from "@/lib/reader/sample-readers";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 /* 示例入口：五种单视频解析结构各取一条真实视频，另放一条合集关系棋盘样例。 */
 export default function SamplesPage() {
   const rows = SAMPLE_TEMPLATES.map((s) => {
-    // 真实解析视频存在 store（getAsset）；c1 的种子视频存在 lib/data（getVideo）——标题分两处找，
+    // 真实解析视频存在 store（getAsset）；找不到再落回种子数据（getVideo），
     // 都找不到才落回核心问题，避免标题行和问题行显示成同一句话。
     const asset = getAsset(s.id);
     const seedVideo = getVideo(s.id);
@@ -25,8 +26,8 @@ export default function SamplesPage() {
     };
   });
 
-  const collection = getCollection("c1")!;
-  const collectionVideoCount = videosOf("c1").length;
+  const collection = realCollectionDetail("89352f66")!;
+  const collectionVideoCount = collection.islands.length;
 
   return (
     <div className="doc">
@@ -47,7 +48,7 @@ export default function SamplesPage() {
         <span className="tt">合集页</span>
       </div>
       <div className="samplesList">
-        <Link className="sampleRow" href="/collection/c1/synthesis">
+        <Link className="sampleRow" href="/collection/89352f66/synthesis">
           <span className="sampleNo">01</span>
           <span className="sampleBody">
             <span className="sampleHead">

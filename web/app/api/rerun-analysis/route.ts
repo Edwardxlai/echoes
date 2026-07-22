@@ -1,9 +1,9 @@
 import {
   getAnalysis, getAsset, getTranscript, listRecallSources,
-  saveAnalysis, saveEchoes, saveExpansion,
+  saveAnalysis, saveEchoes, saveExpansion, saveCommentHeat,
 } from "@/lib/server/store";
 import {
-  analyzeTranscript, generateLinks, generateExpansion, VIDEO_TYPES,
+  analyzeTranscript, classifyTemplate, generateLinks, generateExpansion, VIDEO_TYPES,
   type AnalysisResult,
 } from "@/lib/server/pipeline";
 
@@ -29,7 +29,8 @@ export async function POST(request: Request) {
     const analysis = getAnalysis(src.assetId);
     const asset = getAsset(src.assetId);
     if (!analysis || !asset) continue;
-    if (!only && !all && analysis.videoType !== "intro") continue;
+    // 默认只迁移旧的体裁分类；已是五种渲染结构的存量不重复消耗。
+    if (!only && !all && VIDEO_TYPES.has(analysis.videoType)) continue;
     const title = asset.title.slice(0, 20);
     const transcript = getTranscript(src.assetId);
     if (!transcript) {
@@ -41,6 +42,13 @@ export async function POST(request: Request) {
       : undefined;
     try {
       const a = await analyzeTranscript(transcript, lockType ? { lockType } : undefined);
+      // 回响先行：五模板要把 echo 织进 renderData，必须在 classifyTemplate 之前生成回响。
+      let echoes: Awaited<ReturnType<typeof generateLinks>>["echoes"] = [];
+      try {
+        echoes = (await generateLinks(a, asset.title, listRecallSources(src.assetId))).echoes;
+      } catch { /* 没有回响，脉络照常可用 */ }
+      const echoCount = echoes.length;
+      const dispatch = await classifyTemplate(a, echoes, transcript, asset.title);
       // saveAnalysis 的 REPLACE 会顺带清空旧 cognitiveExpansion/echoes 列——它们挂在旧 backbone 上，本就该作废
       saveAnalysis({
         assetId: src.assetId,
@@ -51,18 +59,19 @@ export async function POST(request: Request) {
         summary: a.summary,
         backbone: a.backbone,
         takeaways: a.takeaways,
+        dispatch,
       });
-
-      let echoCount = 0;
-      try {
-        const links = await generateLinks(a, asset.title, listRecallSources(src.assetId));
-        echoCount = links.echoes.length;
-        saveEchoes(src.assetId, links.echoes);
-      } catch { /* 没有回响，脉络照常可用 */ }
+      // 热度图是视频级评论主题，不挂在 backbone 节点上；
+      // 骨架重跑时保留，避免 INSERT OR REPLACE 将它误清空。
+      if (analysis.commentHeat) saveCommentHeat(src.assetId, analysis.commentHeat);
+      // saveAnalysis 清了 echoes 列，紧随其后写回。
+      if (echoes.length) saveEchoes(src.assetId, echoes);
       try {
         const exp = await generateExpansion(a);
         saveExpansion(src.assetId, {
-          gapFill: exp.gap ? { gap: exp.gap, fill: exp.fill } : {},
+          gapFill: exp.gap
+            ? { gap: exp.gap, fill: exp.fill, ...(exp.searchTerms.length ? { searchTerms: exp.searchTerms } : {}) }
+            : {},
         });
       } catch { /* 脉络照常可用 */ }
 

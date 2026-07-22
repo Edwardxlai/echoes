@@ -203,8 +203,30 @@
 .scCtaTitle{font-family:var(--sans);font-size:15px;font-weight:700;color:var(--ink);letter-spacing:.01em}
 .scCtaSub{font-family:var(--sans);font-size:12px;color:var(--ink-3);line-height:1.4}
 
-.shareActions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.shareAct{font-family:var(--sans);font-size:13.5px;padding:11px 22px;border-radius:11px;
+/* 合集分享卡：主视觉是章节热度，短签代替集数和完整标题。 */
+.scCard--collection .scLogo{margin-bottom:17px}
+.scCollectionKick{margin-bottom:11px;font-family:var(--sans);font-size:11px;font-weight:600;
+  letter-spacing:.12em;color:var(--amber)}
+.scCollectionHook{margin-bottom:24px;font-size:27px}
+.scEpisodeChart{margin-bottom:22px}
+.scEpisodeBars{height:108px;gap:9px}
+.scEpisodeBars .scBar .scCol{width:23px;background:#d3cec2}
+.scEpisodeBars .scBar.is-hot .scCol{background:#c9b083;box-shadow:0 0 14px rgba(200,146,36,.24)}
+.scEpisodeBars .scBar.is-peak .scCol{background:var(--amber);box-shadow:0 0 18px rgba(200,146,36,.42)}
+.scEpisodeLabels{display:grid;gap:9px;align-items:start;border-top:1px solid var(--rule);padding-top:11px}
+.scEpisodeLabels span{min-width:0;font-family:var(--sans);font-size:12px;font-weight:600;line-height:1.35;
+  color:var(--ink-2);text-align:center;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.scEpisodeMore{margin-top:10px;text-align:right;font-family:var(--sans);font-size:10.5px;color:var(--ink-3)}
+.scCollectionSrc{min-height:96px}
+.scCollectionCover{width:62px;height:76px}
+.scCollectionCollage{display:grid;grid-template-columns:repeat(3,1fr);width:76px;height:76px;overflow:hidden;
+  flex:none;border-radius:8px;background:var(--bg-soft);outline:1px solid rgba(28,26,22,.1);outline-offset:-1px}
+.scCollectionCollage img{width:100%;height:100%;min-width:0;object-fit:cover}
+.scCollectionType{margin-bottom:4px;font-family:var(--sans);font-size:10px;font-weight:600;
+  letter-spacing:.08em;color:var(--amber)}
+
+.shareActions{display:flex;width:100%;gap:12px;justify-content:center}
+.shareAct{flex:1;min-width:0;min-height:48px;font-family:var(--sans);font-size:15px;font-weight:600;padding:13px 24px;border-radius:13px;
   border:1px solid var(--rule);background:var(--bg);color:var(--ink);cursor:pointer;
   transition:background .15s,opacity .15s}
 .shareAct:hover:not(:disabled){background:var(--bg-soft)}
@@ -219,7 +241,7 @@
 
 /* ---------- 示例入口 /samples：五模板各一条，表格式行 ---------- */
 .samplesLede{margin-top:16px;font-family:var(--sans);font-size:14px;line-height:1.8;color:var(--ink-2)}
-.samplesList{margin-top:30px;border-top:1px solid var(--ink)}
+.samplesList{margin-top:16px}
 .sampleRow{display:grid;grid-template-columns:34px minmax(0,1fr) 20px;column-gap:16px;align-items:center;
   padding:20px 8px;margin:0 -8px;border-bottom:1px solid var(--rule);text-decoration:none;color:inherit;
   transition:background .18s}
@@ -290,7 +312,8 @@
 .kicktime{font-family:var(--mono);letter-spacing:0;font-variant-numeric:tabular-nums;margin-left:8px}
 .display{font-family:var(--serif);font-weight:400;font-size:clamp(27px,4vw,36px);
   line-height:1.5;letter-spacing:.01em;text-wrap:balance}
-.display--videoTitle{overflow:hidden;max-width:100%;text-overflow:ellipsis;white-space:nowrap}
+.display--videoTitle{overflow:hidden;max-width:100%;font-size:clamp(20px,2.6vw,24px);line-height:1.65;
+  text-overflow:ellipsis;white-space:nowrap}
 /* AI 生成的核心问题句，不是标题——字号降一档、墨色浅一档，读起来像引言而非命名 */
 .display--question{font-size:clamp(20px,2.6vw,24px);line-height:1.65;color:var(--ink-2)}
 .dmeta{display:flex;flex-wrap:nowrap;align-items:baseline;
@@ -547,14 +570,16 @@ tr.rowActive .dotf{background:var(--yes)}
   font-size:12.5px;line-height:1.55;color:var(--ink-2)}
 .cmp__dim{background:var(--bg-soft);font-family:var(--sans);font-size:11.5px;letter-spacing:.03em;
   color:var(--ink-2);display:flex;align-items:center}
-.cmp__rowlabel{font-family:var(--serif);font-weight:600;font-size:14px;color:var(--ink);
+.cmp__rowlabel{font-family:var(--serif);font-weight:500;font-size:14px;color:var(--ink-2);
   background:var(--bg-soft);display:flex;flex-direction:column;justify-content:center;gap:3px}
 .cmp__rowlabel small{font-family:var(--sans);font-size:10px;color:var(--ink-3);font-weight:400;letter-spacing:0}
-.cmp__concl{color:var(--ink);font-weight:600}
+.cmp__concl{color:var(--ink-2);font-weight:400;
+  background:linear-gradient(90deg,rgba(168,123,36,.07),rgba(168,123,36,.025));
+  box-shadow:inset 2px 0 0 rgba(168,123,36,.2)}
 .cmp__empty{color:var(--ink-3);text-align:center;font-size:16px}
 .cmp__verdict{margin-top:16px;font-family:var(--sans);font-size:13.5px;color:var(--ink-2);
-  padding-left:13px;box-shadow:inset 3px 0 0 var(--ink-3)}
-.cmp__verdict b{color:var(--ink)}
+  padding-left:13px;box-shadow:inset 1px 0 0 rgba(168,123,36,.55)}
+.cmp__verdict b{color:var(--amber);font-weight:500}
 
 /* ---------- 04 数据类：横向柱状，带回响的一条整条转暖金 ---------- */
 .chart{margin-top:22px}

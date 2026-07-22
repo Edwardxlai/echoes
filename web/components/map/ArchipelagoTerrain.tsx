@@ -63,6 +63,8 @@ function ArtIsland({ art, categoryId }: { art: IslandArt; categoryId: string }) 
     ? "economy"
     : categoryId === "tech"
       ? "technology"
+      : categoryId === "life"
+        ? "daily"
       : categoryId === "unknown"
         ? "unknown"
         : categoryId === "personal"
@@ -196,23 +198,24 @@ export function ArchipelagoTerrain({ collectionId, categoryId, islands }: {
         const usesCustomIslandArt = usesNewChinaIslandArt || art !== undefined;
         const isEconomyArt = art !== undefined && categoryId === "eco";
         const isTechnologyArt = art !== undefined && categoryId === "tech";
+        const isDailyArt = art !== undefined && categoryId === "life";
         const isUnknownArt = art !== undefined && categoryId === "unknown";
         const isPersonalArt = art !== undefined && categoryId === "personal";
         const isHistoryArt =
-          art !== undefined && !isEconomyArt && !isTechnologyArt && !isUnknownArt && !isPersonalArt;
+          art !== undefined && !isEconomyArt && !isTechnologyArt && !isDailyArt && !isUnknownArt && !isPersonalArt;
         const hierarchyScale =
           isEconomyArt
             ? [1.16, 1.06, 1.06, 0.96, 0.96, 0.9, 0.9][i] ?? 0.88
             : 1;
         const scale = usesCustomIslandArt
-          ? 1.12 * hierarchyScale * ((isEconomyArt || isTechnologyArt) && contentRich ? 1.08 : 1)
+          ? 1.12 * hierarchyScale * ((isEconomyArt || isTechnologyArt || isDailyArt) && contentRich ? 1.08 : 1)
           : ISLAND_SCALES[variant] * (contentRich ? 1.12 : 1);
         const layoutScale = usesInternetEpicLayout ? 0.88 : 1;
 
         return (
           <g key={item.id} transform={`translate(${item.x * 10} ${item.y * 5.6 + 2}) scale(${scale * layoutScale})`}>
             <g
-              className={`island${usesNewChinaIslandArt ? " island--newChina" : ""}${isEconomyArt ? " island--economy" : ""}${isTechnologyArt ? " island--technology" : ""}${isHistoryArt ? " island--history" : ""}${isUnknownArt ? " island--unknown" : ""}${isPersonalArt ? " island--personal" : ""}${unviewed ? " is-unviewed" : ""}${isNew ? " is-new" : ""}${
+              className={`island${usesNewChinaIslandArt ? " island--newChina" : ""}${isEconomyArt ? " island--economy" : ""}${isTechnologyArt ? " island--technology" : ""}${isDailyArt ? " island--daily" : ""}${isHistoryArt ? " island--history" : ""}${isUnknownArt ? " island--unknown" : ""}${isPersonalArt ? " island--personal" : ""}${unviewed ? " is-unviewed" : ""}${isNew ? " is-new" : ""}${
                 isActive ? " is-active" : ""
               }${isRevealing && !usesNewChinaIslandArt ? " is-discovering" : ""}${
                 isDiscoveryHidden ? " is-discovery-hidden" : ""

@@ -174,24 +174,22 @@ const HISTORY_DATA: TemplateRenderData = {
   ],
 };
 
-/* ---------- 03 对比类 · 主线分歧：左侧博弈穿越有何风险？（小星龙头录） ---------- */
+/* ---------- 03 对比类 · 全球最大的金库，居然在这~（小Lin说） ---------- */
 const COMPARE_DATA: TemplateRenderData = {
-  coreQuestion: "分歧后，左侧还是右侧？",
-  dimensions: ["入场时机", "信号明确度", "选标的", "确认方式", "结论"],
+  coreQuestion: "实体黄金和虚拟黄金作为投资方式有何不同？",
+  dimensions: ["交易成本", "心理满足", "储存成本", "流动性", "净投资量"],
   rows: [
     {
-      label: "左侧 · 低吸抗跌",
-      sub: "如 浩华",
-      cells: ["分歧后低吸抗跌品种", "依赖主观判断，模糊", "难选，或被弯道超车", null, "不确定性高"],
+      label: "实体黄金",
+      cells: ["高（约 3% 以上）", "强（拿在手里更踏实）", "高（需保险柜等）", "较低", "高（约占净投资 2/3）"],
     },
     {
-      label: "右侧 · 分离引领",
-      sub: "如 赛力医疗",
-      cells: ["等主动分离引领龙头", "信号明确", "跟随引领，较清晰", "主板缩量二板 / 科创板看趋势", "更稳，需懂板块差异"],
+      label: "虚拟黄金",
+      cells: ["低", "弱（没有实物感）", "低", "高", "较小（但交易量巨大）"],
     },
   ],
   verdictLead: "视频结论",
-  verdict: "当前半导体再磨两天，等右侧分离信号出现再跟随，避免锚定左侧主观预判。",
+  verdict: "实体黄金更受看重实物持有感的私人投资者青睐；虚拟黄金交易与储存成本更低、流动性更高，适合不同需求。",
 };
 
 /* ---------- 04 数据类 · 别只看英伟达！（坤元财研） ---------- */
@@ -300,8 +298,8 @@ const SAMPLES: Record<string, SampleReader> = {
     echoCount: 2,
     dispatch: dispatch("history", HISTORY_DATA),
   },
-  d085ddb7: {
-    coreQuestion: "分歧后，左侧还是右侧？",
+  "19cc77c7": {
+    coreQuestion: "实体黄金和虚拟黄金作为投资方式有何不同？",
     echoCount: 0,
     dispatch: dispatch("compare", COMPARE_DATA),
   },
@@ -325,7 +323,7 @@ export function getSampleReader(id: string): SampleReader | null {
 export const SAMPLE_TEMPLATES: { id: string; template: AnalysisTemplate; label: string }[] = [
   { id: "791e6331", template: "argument", label: "论证类" },
   { id: "55e6378f", template: "history", label: "历史类" },
-  { id: "d085ddb7", template: "compare", label: "对比类" },
+  { id: "19cc77c7", template: "compare", label: "对比类" },
   { id: "51330f35", template: "data", label: "数据类" },
   { id: "1138db7c", template: "scenario", label: "条件推演类" },
 ];

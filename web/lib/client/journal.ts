@@ -263,9 +263,6 @@ export function ensureSampleThoughtsSeed() {
     { id: "sample-t2", createdAt: hoursAgo(5), videoId: "d085ddb7", videoTitle: "主线分歧：左侧博弈穿越有何风险？", categoryId: "eco", href: "/video/d085ddb7", body: "右侧分离信号听着简单，真到分歧那两天大概率还是忍不住抢跑。" },
     { id: "sample-t3", createdAt: hoursAgo(8), videoId: "51330f35", videoTitle: "别只看英伟达！", categoryId: "tech", href: "/video/51330f35", body: "90% 的份额是熬出来的这句话，比单纯说「垄断」更值得记住。" },
     { id: "sample-t4", createdAt: hoursAgo(12), videoId: "1138db7c", videoTitle: "无人生还：万字解析雷曼兄弟崩盘始末", categoryId: "eco", href: "/video/1138db7c", body: "如果政府当时兜底了，道德风险这笔账不知道现在该谁来还。" },
-    { id: "sample-t5", createdAt: hoursAgo(15), videoId: "v1", videoTitle: "通胀到底是谁的锅", categoryId: "eco", href: "/video/v1", body: "以前以为通胀就是印钱印多了，原来流通速度才是那个被忽略的变量。" },
-    { id: "sample-t6", createdAt: hoursAgo(18), videoId: "v2", videoTitle: "央行加息在加什么", categoryId: "eco", href: "/video/v2", body: "加息对成本推动型通胀几乎无效这点，之前一直没想明白。" },
-    { id: "sample-t7", createdAt: hoursAgo(20), videoTitle: "看懂通胀这门课", categoryId: "eco", href: "/collection/c1/synthesis", collectionId: "c1", body: "三集看完，通胀更像是一场谁先反应过来的分配博弈，而不是单纯的货币现象。" },
   ];
   const existing = readRows<Thought>(THOUGHTS_KEY);
   const existingIds = new Set(existing.map((t) => t.id));

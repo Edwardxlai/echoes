@@ -232,11 +232,9 @@ export const WORLD_SCENE: MapScene = {
       id: "region-life",
       entityType: "category",
       entityId: "life",
-      x: 50,
-      y: 12,
-      // 占位：日常美术到位后换成 /map-runtime/life/... 的日常岛贴图。
-      asset:
-        "/map-runtime/world/expansion/island-a/terrain/world_expansion-island-a_terrain_default_lod1_v01.webp",
+      x: 8,
+      y: 28,
+      asset: "/map-runtime/life/life-world-region-terrain-v01.png",
       route: "/category/life",
       cameraZoom: 1.34,
       hitBox: { width: 150, height: 82, mobileWidth: 104, mobileHeight: 68 },

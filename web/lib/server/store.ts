@@ -92,6 +92,8 @@ export interface CollectionRow {
   id: string;
   name: string;
   categoryId: string;
+  /** 本地合集封面路径。抖音 mix 有独立封面；自动聚类合集为空串。 */
+  cover: string;
   /** 原合集链接（抖音 mix 页）。自动聚类的 tc-/misc- 合集没有来源，恒为空串。 */
   sourceUrl: string;
   createdAt: string;
@@ -180,6 +182,7 @@ function getDb(): DatabaseSync {
     `ALTER TABLE collections ADD COLUMN synthesis TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE collections ADD COLUMN collectionGap TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE collections ADD COLUMN sourceUrl TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE collections ADD COLUMN cover TEXT NOT NULL DEFAULT ''`,
   ]) {
     try { db.exec(sql); } catch { /* 列已存在 */ }
   }
@@ -335,6 +338,50 @@ export function getAsset(id: string): SourceAsset | null {
   return (row as unknown as SourceAsset) ?? null;
 }
 
+/** 去重入口：同一规范化来源只取最近一条，兼容启用去重前已经产生的重复数据。 */
+export function findLatestAssetBySourceUrl(sourceUrl: string): SourceAsset | null {
+  const row = getDb()
+    .prepare(`SELECT * FROM source_assets WHERE sourceUrl = ? ORDER BY createdAt DESC LIMIT 1`)
+    .get(sourceUrl);
+  return (row as unknown as SourceAsset) ?? null;
+}
+
+/** 用户确认覆盖后复用原 asset id，避免已收藏或已分享的解析页链接失效。 */
+export function resetAssetForOverwrite(
+  id: string,
+  input: { sourceUrl: string; title?: string; groupId?: string | null },
+): SourceAsset {
+  const database = getDb();
+  database.prepare(`DELETE FROM transcripts WHERE assetId = ?`).run(id);
+  database.prepare(`DELETE FROM analyses WHERE assetId = ?`).run(id);
+  const timestamp = now();
+  database.prepare(
+    `UPDATE source_assets SET
+       title = ?, author = '', sourceUrl = ?, sourcePlatform = '', status = 'uploaded',
+       step = '排队中', errorMessage = '', duration = '', cover = '', groupId = ?,
+       bigCategoryId = NULL, collectionId = NULL,
+       likeCount = NULL, collectCount = NULL, commentCount = NULL, shareCount = NULL,
+       metricsSource = '', metricsFetchedAt = '', updatedAt = ?
+     WHERE id = ?`,
+  ).run(input.title ?? "", input.sourceUrl, input.groupId ?? null, timestamp, id);
+  return getAsset(id)!;
+}
+
+/** 覆盖合集时移除新目录里已经不存在的旧集。 */
+export function deleteGroupAssetsExcept(groupId: string, keepSourceUrls: string[]): void {
+  const database = getDb();
+  const rows = database
+    .prepare(`SELECT id, sourceUrl FROM source_assets WHERE groupId = ?`)
+    .all(groupId) as { id: string; sourceUrl: string }[];
+  const keep = new Set(keepSourceUrls);
+  for (const row of rows) {
+    if (keep.has(row.sourceUrl)) continue;
+    database.prepare(`DELETE FROM transcripts WHERE assetId = ?`).run(row.id);
+    database.prepare(`DELETE FROM analyses WHERE assetId = ?`).run(row.id);
+    database.prepare(`DELETE FROM source_assets WHERE id = ?`).run(row.id);
+  }
+}
+
 export function getAssetsByGroup(groupId: string): SourceAsset[] {
   const rows = getDb()
     .prepare(`SELECT * FROM source_assets WHERE groupId = ? ORDER BY createdAt`)
@@ -430,8 +477,20 @@ export function setCollectionSourceUrl(id: string, sourceUrl: string): void {
   getDb().prepare(`UPDATE collections SET sourceUrl = ? WHERE id = ?`).run(sourceUrl, id);
 }
 
+/** 抖音合集封面在枚举时下载到本地，避免签名 URL 过期。 */
+export function setCollectionCover(id: string, cover: string): void {
+  getDb().prepare(`UPDATE collections SET cover = ? WHERE id = ?`).run(cover, id);
+}
+
 export function getCollectionRow(id: string): CollectionRow | null {
   const row = getDb().prepare(`SELECT * FROM collections WHERE id = ?`).get(id);
+  return (row as unknown as CollectionRow) ?? null;
+}
+
+export function findCollectionBySourceUrl(sourceUrl: string): CollectionRow | null {
+  const row = getDb()
+    .prepare(`SELECT * FROM collections WHERE sourceUrl = ? ORDER BY createdAt DESC LIMIT 1`)
+    .get(sourceUrl);
   return (row as unknown as CollectionRow) ?? null;
 }
 

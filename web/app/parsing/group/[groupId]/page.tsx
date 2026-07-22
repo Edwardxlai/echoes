@@ -60,8 +60,6 @@ export default function GroupParsingPage() {
   }, [groupId, pollEpoch]);
 
   const doneCount = assets?.filter((a) => a.status === "analyzed").length ?? 0;
-  const finished = !!assets && assets.every(settled);
-
   return (
     <div className="doc">
       <BrandHomeLink className="readerBrand" />
@@ -117,12 +115,6 @@ export default function GroupParsingPage() {
               </div>
             )
           )}
-        </div>
-      )}
-
-      {!gone && !finished && (
-        <div className="pwander">
-          <Link className="kfrom" href="/">先去逛逛，待会回来看</Link>
         </div>
       )}
 
