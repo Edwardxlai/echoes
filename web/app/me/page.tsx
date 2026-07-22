@@ -85,7 +85,7 @@ export default function MyIslandPage() {
       <div className="mapPage__grain" aria-hidden="true" />
       <h1 className="srOnly">我的岛屿群岛</h1>
 
-      <MapAtlasNav href="/" label="世界地图" />
+      <MapAtlasNav href="/" />
 
       <section className="mapSceneSection mapSceneSection--regionAtlas" aria-label="我的岛屿群岛地图">
         <MapStage
@@ -115,7 +115,7 @@ export default function MyIslandPage() {
         className="regionAtlasLocator"
         aria-label={`我的岛屿群岛，共 2 座岛屿，${counts.islands} 座探索过，${counts.thoughts} 条想法留下过`}
       >
-        <span>ARCHIPELAGO · 2 ISLANDS</span>
+        <span>{counts.islands} EXPLORED · {counts.thoughts} THOUGHTS</span>
         <strong>我的岛屿</strong>
         <i aria-hidden="true" />
       </div>

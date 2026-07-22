@@ -8,11 +8,11 @@ import { createMapItem, type MapItem } from "@/lib/map-config";
 import {
   listCollections, listAssetsByCollection, getCollectionRow, getAnalysis, getSynthesis,
   getCollectionGapFill,
-  getCollectionExtend,
   listUnknownSeaAssets,
   type CollectionRow, type SourceAsset,
 } from "./store";
 import type { Synthesis, CognitiveExpansion } from "@/lib/data";
+import type { CommentHeat } from "@/lib/reader/comment-heat";
 
 export { hasRealMapContent } from "./store";
 
@@ -223,10 +223,13 @@ export interface RealIsland {
   sourceUrl: string;
   coreQuestion: string;
   echoCount: number;
+  engagementHeat: number;
   viewed: boolean;
   isNew: boolean;
   contentRich: boolean;
   mapItem: MapItem;
+  /** 评论主题热度（L4b）。未生成时为 null。 */
+  commentHeat: CommentHeat | null;
 }
 
 export interface RealCollectionDetail {
@@ -237,7 +240,7 @@ export interface RealCollectionDetail {
   islands: RealIsland[];
   /** 合集级跨视频合成（L6）。未生成/单集合集时为 null。 */
   synthesis: Synthesis | null;
-  /** 合集级认知拓展："往旁看"补缺 + 整组之上的延伸。两者门控皆空时为 null。 */
+  /** 合集级补缺。未生成时为 null。 */
   cognitiveExpansion: CognitiveExpansion | null;
   /** 原合集链接（仅 mix 合集有；自动聚类/未知海域为空串）。 */
   sourceUrl: string;
@@ -258,9 +261,11 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
         sourceUrl: asset.sourceUrl,
         coreQuestion: analysis?.coreQuestion ?? "",
         echoCount: analysis?.echoes?.length ?? 0,
+        engagementHeat: (asset.likeCount ?? 0) + (asset.collectCount ?? 0),
         viewed: false,
         isNew: isNewAsset(asset),
         contentRich: (analysis?.backbone.length ?? 0) >= 6,
+        commentHeat: analysis?.commentHeat ?? null,
         mapItem: createMapItem({
           id: `island-${asset.id}`,
           entityType: "video",
@@ -317,9 +322,11 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
       sourceUrl: asset.sourceUrl,
       coreQuestion: analysis?.coreQuestion ?? "",
       echoCount: analysis?.echoes?.length ?? 0,
+      engagementHeat: (asset.likeCount ?? 0) + (asset.collectCount ?? 0),
       viewed: false, // 观看史 P2 才有；真实视频先按未点亮处理
       isNew: isNewAsset(asset),
       contentRich: (analysis?.backbone.length ?? 0) >= 6,
+      commentHeat: analysis?.commentHeat ?? null,
       mapItem: createMapItem({
         id: `island-${asset.id}`,
         entityType: "video",
@@ -335,10 +342,9 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
     };
   });
   const gapFill = getCollectionGapFill(row.id);
-  const collectionExtend = getCollectionExtend(row.id);
-  // 补缺、延伸任一有内容即渲染认知拓展；voices 恒 0（讨论区 P2 前的种子数）
+  // 补缺有内容才渲染。
   const cognitiveExpansion: CognitiveExpansion | null =
-    gapFill || collectionExtend.length
+    gapFill
       ? {
           gapFill: gapFill
             ? {
@@ -347,7 +353,6 @@ export function realCollectionDetail(collectionId: string): RealCollectionDetail
                 ...(gapFill.searchTerms?.length ? { searchTerms: gapFill.searchTerms } : {}),
               }
             : {},
-          extend: collectionExtend.map((x) => ({ ...x, voices: 0 })),
         }
       : null;
 

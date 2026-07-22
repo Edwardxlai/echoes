@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCategory, getCollection, videosOf } from "@/lib/data";
+import { getCollection, videosOf } from "@/lib/data";
 import { ARCHIPELAGO_SCENES, type MapItem } from "@/lib/map-config";
 import { realCollectionDetail, UNKNOWN_SEA_COLLECTION_ID, type RealIsland } from "@/lib/server/real-data";
 import { MapStage, type HotspotDef } from "@/components/map/MapStage";
@@ -11,7 +11,7 @@ import RegionWaterCanvas from "@/components/map/RegionWaterCanvas";
 export const dynamic = "force-dynamic";
 
 /** 岛屿渲染所需的最小形状：种子 Video 与真实解析视频都折算成它。 */
-type IslandDef = Omit<RealIsland, "mapItem" | "cover" | "sourceUrl"> & {
+type IslandDef = Omit<RealIsland, "mapItem" | "cover" | "sourceUrl" | "engagementHeat"> & {
   cover?: string;
   sourceUrl?: string;
   mapItem: MapItem;
@@ -80,6 +80,7 @@ export default async function ArchipelagoMapPage({
           viewed: video.viewed,
           isNew: video.isNew,
           contentRich: video.contentRich,
+          commentHeat: null,
           mapItem,
         },
       ];
@@ -100,7 +101,6 @@ export default async function ArchipelagoMapPage({
   const collection = seed
     ? { name: seed.name, categoryId: seed.categoryId, echoCount: seed.echoCount, synthesis: !!seed.synthesis }
     : { name: real!.name, categoryId: real!.categoryId, echoCount: real!.echoCount, synthesis: !!real!.synthesis };
-  const category = getCategory(collection.categoryId);
   const isUnknownSea = collectionId === UNKNOWN_SEA_COLLECTION_ID;
 
   const items: HotspotDef[] = islands.map((island) => ({
@@ -135,10 +135,7 @@ export default async function ArchipelagoMapPage({
       <div className="mapPage__grain" aria-hidden="true" />
       <h1 className="srOnly">{collection.name}群岛</h1>
 
-      <MapAtlasNav
-        href={isUnknownSea ? "/" : `/category/${collection.categoryId}`}
-        label={isUnknownSea ? "世界地图" : category ? `${category.name}区域` : "区域地图"}
-      />
+      <MapAtlasNav href={isUnknownSea ? "/" : `/category/${collection.categoryId}`} />
 
       <section
         className="mapSceneSection mapSceneSection--regionAtlas"

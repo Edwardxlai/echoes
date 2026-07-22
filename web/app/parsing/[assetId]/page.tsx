@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
+import { BackLink } from "@/components/nav/BackLink";
 
 /* 单视频解析等待页：轮询状态机（uploaded→transcribing→analyzing→analyzed|failed），
    步骤沿用脉络的点线语言；analyzed 后进解析页，failed 给原因 + 回世界地图的出口。 */
@@ -93,7 +94,7 @@ export default function ParsingPage() {
       <BrandHomeLink className="readerBrand" />
 
       <div className="docNav">
-        <Link className="backlink" href="/">← &nbsp;世界地图</Link>
+        <BackLink className="backlink" href="/">← &nbsp;返回</BackLink>
         {!gone && !failed && <span className="kicktime">{formatElapsed(elapsed)}</span>}
       </div>
       <h1 className="display display--videoTitle">

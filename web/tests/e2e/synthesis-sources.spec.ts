@@ -3,9 +3,12 @@ import { expect, test } from "@playwright/test";
 test("structured synthesis only lists sources referenced by a facet", async ({ page }) => {
   await page.goto("/collection/da2e1ad3/synthesis");
 
-  const point = page.locator(".kp").filter({ hasText: "杠杆收购的财富与代价" });
-  await expect(point.locator(".kp-ref")).toHaveText(["1", "2", "4"]);
-  await expect(point.locator(".src-no")).toHaveText(["1", "2", "4"]);
+  const row = page.locator("table.matrix tbody tr").filter({ hasText: "杠杆收购的财富与代价" });
+  await row.click();
+
+  const drawer = page.locator(".focusDrawer");
+  await expect(drawer.locator(".kp-ref")).toHaveText(["1", "2", "4"]);
+  await expect(drawer.locator(".src-no")).toHaveText(["1", "2", "4"]);
 });
 
 test("all collection synthesis source lists match their visible facet references", async ({ page }) => {
@@ -17,12 +20,17 @@ test("all collection synthesis source lists match their visible facet references
 
   for (const collectionId of collectionIds) {
     await page.goto(`/collection/${collectionId}/synthesis`);
-    const points = page.locator(".kp").filter({ has: page.locator(".spine") });
-    for (let i = 0; i < await points.count(); i += 1) {
-      const point = points.nth(i);
-      const references = [...new Set(await point.locator(".kp-ref").allTextContents())]
+    const rows = page.locator("table.matrix tbody tr");
+    const rowCount = await rows.count();
+
+    for (let i = 0; i < rowCount; i += 1) {
+      await rows.nth(i).click();
+      const drawer = page.locator(".focusDrawer");
+      if ((await drawer.locator(".spine").count()) === 0) continue; // 无 facets 的点走 note 兜底，没有 ref 可核对
+
+      const references = [...new Set(await drawer.locator(".kp-ref").allTextContents())]
         .sort((a, b) => Number(a) - Number(b));
-      const sources = (await point.locator(".src-no").allTextContents())
+      const sources = (await drawer.locator(".src-no").allTextContents())
         .sort((a, b) => Number(a) - Number(b));
       expect(sources, `${collectionId} point ${i + 1}`).toEqual(references);
     }

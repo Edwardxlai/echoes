@@ -56,8 +56,7 @@ export default async function RegionMapPage({
       terrain: real.terrain,
       glyphKind: real.glyphKind,
       mapItem: real.mapItem,
-      // from=region：合集解析页返回键回区域地图，而不是默认的群岛
-      synthesisRoute: real.hasSynthesis ? `${real.mapItem.route}/synthesis?from=region` : undefined,
+      synthesisRoute: real.hasSynthesis ? `${real.mapItem.route}/synthesis` : undefined,
       sourceUrl: real.sourceUrl || undefined,
     }));
   } else {
@@ -74,7 +73,7 @@ export default async function RegionMapPage({
           terrain: collection.terrain,
           glyphKind: collection.glyphKind,
           mapItem,
-          synthesisRoute: collection.synthesis ? `${mapItem.route}/synthesis?from=region` : undefined,
+          synthesisRoute: collection.synthesis ? `${mapItem.route}/synthesis` : undefined,
         },
       ];
     });
@@ -115,7 +114,7 @@ export default async function RegionMapPage({
       <div className="mapPage__grain" aria-hidden="true" />
       <h1 className="srOnly">{category.name}知识区域</h1>
 
-      <MapAtlasNav href="/" label="世界地图" />
+      <MapAtlasNav href="/" />
 
       <section
         className="mapSceneSection mapSceneSection--regionAtlas"

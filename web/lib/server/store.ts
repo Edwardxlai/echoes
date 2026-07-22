@@ -9,7 +9,16 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { CognitiveExpansion, CollectionExtendItem, CollectionGapFill, Echo, Synthesis } from "@/lib/data";
+import type { CognitiveExpansion, CollectionGapFill, Echo, Synthesis } from "@/lib/data";
+import type { CommentHeat } from "@/lib/reader/comment-heat";
+import {
+  ANALYSIS_TEMPLATES,
+  createArgumentDispatch,
+  withSemanticAnchors,
+  type AnalysisDispatch,
+  type AnalysisTemplate,
+} from "@/lib/analysis-contract";
+import { semanticAnchorId } from "@/lib/semantic-anchor";
 
 export type AssetStatus =
   | "uploaded"
@@ -33,12 +42,19 @@ export interface SourceAsset {
   groupId: string | null;
   bigCategoryId: string | null;
   collectionId: string | null;
+  likeCount: number | null;
+  collectCount: number | null;
+  commentCount: number | null;
+  shareCount: number | null;
+  metricsSource: "real" | "mock" | "";
+  metricsFetchedAt: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface BackboneNode {
   id: string;
+  anchorId: string;
   concept: string;
   /** 该节点在所选骨架中的环节名（≤4字，如"核心张力"/"论据"）。旧数据缺席，前端回落时间戳。 */
   role?: string;
@@ -54,15 +70,20 @@ export interface Analysis {
   summary: string;
   backbone: BackboneNode[];
   takeaways: string[];
-  /** L4 认知拓展（补缺 + 延伸）。生成失败时缺席，解析页不摆空壳。 */
+  dispatch?: AnalysisDispatch;
+  /** L4 补缺。生成失败时缺席，解析页不摆空壳。 */
   cognitiveExpansion?: CognitiveExpansion;
-  /** L5 回响：按 backbone 下标挂到节点。宁缺毋滥，没有就是空数组。 */
+  /** L4b 评论热度（内容感知的模拟数据，非真实抓取）。生成失败时缺席，解析页不摆空壳。 */
+  commentHeat?: CommentHeat;
+  /** L5 回响：锚点为主，nodeIndex 仅供旧渲染兼容。 */
   echoes?: StoredEcho[];
 }
 
 /** 落库的回响：nodeIndex 定位本条 backbone 的节点，其余字段即前端 Echo。 */
 export interface StoredEcho extends Echo {
   nodeIndex: number;
+  sourceAnchorId: string;
+  targetAnchorId: string;
   /** 反向条目（L5b 写回旧视频的那半边）。反向不再生反向，防止来回弹 */
   reciprocal?: boolean;
 }
@@ -134,29 +155,105 @@ function getDb(): DatabaseSync {
       categoryId TEXT NOT NULL,
       createdAt TEXT NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS topic_posts (
-      id TEXT PRIMARY KEY,
-      topicId TEXT NOT NULL,
-      body TEXT NOT NULL,
-      createdAt TEXT NOT NULL
-    );
   `);
   // 增量迁移（列已存在时静默跳过）：M2 认知拓展；M3 回响；封面；合集级跨视频合成
   for (const sql of [
     `ALTER TABLE analyses ADD COLUMN cognitiveExpansion TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE analyses ADD COLUMN commentHeat TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE analyses ADD COLUMN echoes TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE analyses ADD COLUMN template TEXT NOT NULL DEFAULT 'argument'`,
+    `ALTER TABLE analyses ADD COLUMN templateConfidence REAL NOT NULL DEFAULT 0`,
+    `ALTER TABLE analyses ADD COLUMN downgrade TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE analyses ADD COLUMN renderData TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE source_assets ADD COLUMN cover TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE source_assets ADD COLUMN likeCount INTEGER`,
+    `ALTER TABLE source_assets ADD COLUMN collectCount INTEGER`,
+    `ALTER TABLE source_assets ADD COLUMN commentCount INTEGER`,
+    `ALTER TABLE source_assets ADD COLUMN shareCount INTEGER`,
+    `ALTER TABLE source_assets ADD COLUMN metricsSource TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE source_assets ADD COLUMN metricsFetchedAt TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE collections ADD COLUMN synthesis TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE collections ADD COLUMN collectionGap TEXT NOT NULL DEFAULT ''`,
-    `ALTER TABLE collections ADD COLUMN collectionExtend TEXT NOT NULL DEFAULT ''`,
-    `ALTER TABLE topic_posts ADD COLUMN parentId TEXT`,
-    `ALTER TABLE topic_posts ADD COLUMN quoteNodeId TEXT`,
-    `ALTER TABLE topic_posts ADD COLUMN quoteText TEXT`,
     `ALTER TABLE collections ADD COLUMN sourceUrl TEXT NOT NULL DEFAULT ''`,
   ]) {
     try { db.exec(sql); } catch { /* 列已存在 */ }
   }
+  migrateAnalysisContracts(db);
   return db;
+}
+
+/** Phase 0 in-place migration: no LLM rerun, only contract/anchor backfill. */
+function migrateAnalysisContracts(database: DatabaseSync): void {
+  const rows = database
+    .prepare(`SELECT * FROM analyses`)
+    .all() as Record<string, unknown>[];
+  if (!rows.length) return;
+
+  const migrated = rows.map((row) => {
+    let backbone: BackboneNode[] = [];
+    try { backbone = JSON.parse(String(row.backbone || "[]")); } catch { /* empty below */ }
+    backbone = backbone.map((node, index) => ({
+      ...node,
+      id: node.id != null && node.id !== "" ? String(node.id) : `node-${index + 1}`,
+      anchorId: node.anchorId || semanticAnchorId(node.concept || ""),
+    }));
+    let takeaways: string[] = [];
+    try { takeaways = JSON.parse(String(row.takeaways || "[]")); } catch { /* empty */ }
+    const fallbackDispatch = createArgumentDispatch({
+      coreQuestion: String(row.coreQuestion || ""),
+      summary: String(row.summary || ""),
+      nodes: backbone,
+      takeaways,
+      confidence: Number(row.templateConfidence || row.typeConfidence || 0),
+      reason: row.renderData ? "phase0-argument-baseline" : "legacy-analysis-migration",
+    });
+    const hasRenderData = typeof row.renderData === "string" && row.renderData.trim().length > 0;
+    return {
+      row,
+      backbone,
+      template: hasRenderData ? String(row.template || "argument") : fallbackDispatch.template,
+      confidence: hasRenderData
+        ? Number(row.templateConfidence || row.typeConfidence || 0)
+        : fallbackDispatch.confidence,
+      downgrade: hasRenderData
+        ? String(row.downgrade || JSON.stringify(fallbackDispatch.downgrade))
+        : JSON.stringify(fallbackDispatch.downgrade),
+      renderData: hasRenderData
+        ? String(row.renderData)
+        : JSON.stringify(fallbackDispatch.renderData),
+    };
+  });
+
+  const byAsset = new Map(migrated.map((item) => [String(item.row.assetId), item.backbone]));
+  const update = database.prepare(
+    `UPDATE analyses
+     SET backbone = ?, template = ?, templateConfidence = ?, downgrade = ?, renderData = ?, echoes = ?
+     WHERE assetId = ?`,
+  );
+  for (const item of migrated) {
+    let echoes: StoredEcho[] = [];
+    try { echoes = JSON.parse(String(item.row.echoes || "[]")); } catch { /* empty */ }
+    echoes = echoes.map((echo) => {
+      const source = item.backbone[Number(echo.nodeIndex)];
+      const targetNodes = echo.targetVideoId ? byAsset.get(echo.targetVideoId) : undefined;
+      const target = targetNodes?.find((node) => node.timestamp === echo.timestampText);
+      return {
+        ...echo,
+        sourceAnchorId: echo.sourceAnchorId || source?.anchorId || semanticAnchorId(source?.concept || ""),
+        targetAnchorId:
+          echo.targetAnchorId || target?.anchorId || semanticAnchorId(echo.oldSay || echo.targetTitle || ""),
+      };
+    });
+    update.run(
+      JSON.stringify(item.backbone),
+      item.template,
+      item.confidence,
+      item.downgrade,
+      item.renderData,
+      JSON.stringify(echoes),
+      String(item.row.assetId),
+    );
+  }
 }
 
 const now = () => new Date().toISOString();
@@ -182,6 +279,12 @@ export function createAsset(input: {
     groupId: input.groupId ?? null,
     bigCategoryId: null,
     collectionId: null,
+    likeCount: null,
+    collectCount: null,
+    commentCount: null,
+    shareCount: null,
+    metricsSource: "",
+    metricsFetchedAt: "",
     createdAt: now(),
     updatedAt: now(),
   };
@@ -207,6 +310,8 @@ export function updateAsset(
       SourceAsset,
       | "title" | "author" | "status" | "step" | "errorMessage" | "duration"
       | "cover" | "bigCategoryId" | "collectionId"
+      | "likeCount" | "collectCount" | "commentCount" | "shareCount"
+      | "metricsSource" | "metricsFetchedAt"
     >
   >
 ): void {
@@ -215,7 +320,7 @@ export function updateAsset(
   const sets = fields.map((f) => `${f} = ?`).join(", ");
   getDb()
     .prepare(`UPDATE source_assets SET ${sets}, updatedAt = ? WHERE id = ?`)
-    .run(...fields.map((f) => patch[f] as string | null), now(), id);
+    .run(...fields.map((f) => patch[f] as string | number | null), now(), id);
 }
 
 export function getAsset(id: string): SourceAsset | null {
@@ -232,6 +337,12 @@ export function getAssetsByGroup(groupId: string): SourceAsset[] {
   return rows as unknown as SourceAsset[];
 }
 
+export function listAssets(): SourceAsset[] {
+  return getDb()
+    .prepare(`SELECT * FROM source_assets ORDER BY createdAt`)
+    .all() as unknown as SourceAsset[];
+}
+
 export function saveTranscript(assetId: string, fullText: string): void {
   getDb()
     .prepare(`INSERT INTO transcripts (id, assetId, fullText, createdAt) VALUES (?,?,?,?)`)
@@ -246,15 +357,26 @@ export function getTranscript(assetId: string): string | null {
 }
 
 export function saveAnalysis(a: Analysis): void {
+  const backbone = withSemanticAnchors(a.backbone);
+  const dispatch = a.dispatch ?? createArgumentDispatch({
+      coreQuestion: a.coreQuestion,
+      summary: a.summary,
+      nodes: backbone,
+      takeaways: a.takeaways,
+      confidence: a.typeConfidence,
+    });
   getDb()
     .prepare(
       `INSERT OR REPLACE INTO analyses
-       (id, assetId, coreQuestion, videoType, typeConfidence, summary, backbone, takeaways, createdAt)
-       VALUES (?,?,?,?,?,?,?,?,?)`
+       (id, assetId, coreQuestion, videoType, typeConfidence, summary, backbone, takeaways,
+        template, templateConfidence, downgrade, renderData, createdAt)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       randomUUID(), a.assetId, a.coreQuestion, a.videoType, a.typeConfidence,
-      a.summary, JSON.stringify(a.backbone), JSON.stringify(a.takeaways), now()
+      a.summary, JSON.stringify(backbone), JSON.stringify(a.takeaways),
+      dispatch.template, dispatch.confidence, JSON.stringify(dispatch.downgrade),
+      JSON.stringify(dispatch.renderData), now()
     );
 }
 
@@ -264,10 +386,29 @@ export function saveExpansion(assetId: string, expansion: CognitiveExpansion): v
     .run(JSON.stringify(expansion), assetId);
 }
 
+export function saveCommentHeat(assetId: string, heat: CommentHeat): void {
+  getDb()
+    .prepare(`UPDATE analyses SET commentHeat = ? WHERE assetId = ?`)
+    .run(JSON.stringify(heat), assetId);
+}
+
 export function saveEchoes(assetId: string, echoes: StoredEcho[]): void {
   getDb()
     .prepare(`UPDATE analyses SET echoes = ? WHERE assetId = ?`)
     .run(JSON.stringify(echoes), assetId);
+}
+
+/** 单独回填模板派发（Phase 1b 存量补判），backbone/回响/补缺原样不动。 */
+export function saveDispatch(assetId: string, dispatch: AnalysisDispatch): void {
+  getDb()
+    .prepare(
+      `UPDATE analyses SET template = ?, templateConfidence = ?, downgrade = ?, renderData = ? WHERE assetId = ?`
+    )
+    .run(
+      dispatch.template, dispatch.confidence,
+      JSON.stringify(dispatch.downgrade), JSON.stringify(dispatch.renderData),
+      assetId
+    );
 }
 
 export function upsertCollection(id: string, name: string, categoryId: string): void {
@@ -307,10 +448,10 @@ export function getSynthesis(collectionId: string): Synthesis | null {
   } catch { return null; }
 }
 
-/** 清空合集的 L6 产物（合成/补缺/延伸）。成员搬走后旧产物引用已离开的视频，宁缺毋滥。 */
+/** 清空合集的 L6 产物（合成/补缺）。成员搬走后旧产物引用已离开的视频，宁缺毋滥。 */
 export function clearCollectionSynthesis(collectionId: string): void {
   getDb()
-    .prepare(`UPDATE collections SET synthesis = '', collectionGap = '', collectionExtend = '' WHERE id = ?`)
+    .prepare(`UPDATE collections SET synthesis = '', collectionGap = '' WHERE id = ?`)
     .run(collectionId);
 }
 
@@ -330,24 +471,6 @@ export function getCollectionGapFill(collectionId: string): CollectionGapFill | 
     const parsed = JSON.parse(row.collectionGap) as CollectionGapFill;
     return parsed.gap && parsed.fill ? parsed : null;
   } catch { return null; } // 旧 schema（列未迁移）或坏 JSON → 视为无补缺
-}
-
-/** 合集级延伸（往深想，L6 收尾生成）。门控为空/单集合集时缺席。 */
-export function saveCollectionExtend(collectionId: string, extend: CollectionExtendItem[]): void {
-  getDb()
-    .prepare(`UPDATE collections SET collectionExtend = ? WHERE id = ?`)
-    .run(JSON.stringify(extend), collectionId);
-}
-
-export function getCollectionExtend(collectionId: string): CollectionExtendItem[] {
-  try {
-    const row = getDb()
-      .prepare(`SELECT collectionExtend FROM collections WHERE id = ?`)
-      .get(collectionId) as { collectionExtend?: string } | undefined;
-    if (!row?.collectionExtend) return [];
-    const parsed = JSON.parse(row.collectionExtend) as CollectionExtendItem[];
-    return Array.isArray(parsed) ? parsed.filter((x) => x?.question && x?.hint) : [];
-  } catch { return []; } // 旧 schema（列未迁移）或坏 JSON → 视为无延伸
 }
 
 /** 有归属（分类完成）的合集，按大类过滤；只返回内含 ≥1 条已解析视频的。 */
@@ -450,86 +573,6 @@ export function listRecallSources(excludeAssetId: string): RecallSource[] {
   }));
 }
 
-/* ---------- 同题空间（讨论区 P0）：单用户本地，发帖即落库 ---------- */
-
-export interface TopicPostRow {
-  id: string;
-  topicId: string;
-  body: string;
-  createdAt: string;
-  /** 非空 = 对某条想法的回复；父 id 可为种子帖（seed-N，静态稳定）或真实帖 */
-  parentId: string | null;
-  /** quoteRef：发想法时从脉络里带的一句原文。nodeId 定位原句，text 是快照
-      （防真实解析重跑后原句漂移）；主帖和回复都能带。 */
-  quoteNodeId: string | null;
-  quoteText: string | null;
-}
-
-export function addTopicPost(
-  topicId: string,
-  body: string,
-  parentId?: string,
-  quote?: { nodeId: string; text: string }
-): void {
-  getDb()
-    .prepare(
-      `INSERT INTO topic_posts (id, topicId, body, createdAt, parentId, quoteNodeId, quoteText)
-       VALUES (?,?,?,?,?,?,?)`
-    )
-    .run(
-      randomUUID(),
-      topicId,
-      body,
-      now(),
-      parentId ?? null,
-      quote?.nodeId ?? null,
-      quote?.text ?? null
-    );
-}
-
-/** 删除自己的想法；是主帖则连带删它下面的回复（不留孤儿）。 */
-export function deleteTopicPost(id: string): void {
-  getDb()
-    .prepare(`DELETE FROM topic_posts WHERE id = ? OR parentId = ?`)
-    .run(id, id);
-}
-
-export function listTopicPosts(topicId: string): TopicPostRow[] {
-  const rows = getDb()
-    .prepare(`SELECT * FROM topic_posts WHERE topicId = ? ORDER BY createdAt`)
-    .all(topicId);
-  return rows as unknown as TopicPostRow[];
-}
-
-/** 讨论区收拢（2026-07-20）：取一个视频/合集名下的全部真实帖——
-    新空间编码（video./collection.）与废弃线编码（extend./echo.）一起查，
-    旧帖在 discussion.ts 读取层迁移进空间视图，库里数据原样不动。 */
-export function listTopicPostsByOwner(ownerId: string): TopicPostRow[] {
-  const rows = getDb()
-    .prepare(
-      `SELECT * FROM topic_posts
-       WHERE topicId IN (?, ?) OR topicId LIKE ? OR topicId LIKE ?
-       ORDER BY createdAt`
-    )
-    .all(
-      `video.${ownerId}`,
-      `collection.${ownerId}`,
-      `extend.${ownerId}.%`,
-      `echo.${ownerId}.%`
-    );
-  return rows as unknown as TopicPostRow[];
-}
-
-/** 讨论门槛的口径：该大类下已解析的视频数（proof-of-investment）。 */
-export function countAnalyzedByCategory(categoryId: string): number {
-  const row = getDb()
-    .prepare(
-      `SELECT COUNT(*) AS n FROM source_assets WHERE bigCategoryId = ? AND status = 'analyzed'`
-    )
-    .get(categoryId) as { n: number } | undefined;
-  return row?.n ?? 0;
-}
-
 /** 地图是否已有真实内容（有归属的已解析视频）——有则地图层展示真实数据。 */
 export function hasRealMapContent(): boolean {
   const row = getDb()
@@ -550,20 +593,61 @@ export function getAnalysis(assetId: string): Analysis | null {
     const raw = row.cognitiveExpansion as string | undefined;
     if (raw) cognitiveExpansion = JSON.parse(raw);
   } catch { /* 坏 JSON 视同未生成 */ }
+  let commentHeat: CommentHeat | undefined;
+  try {
+    const raw = row.commentHeat as string | undefined;
+    if (raw) commentHeat = JSON.parse(raw);
+  } catch { /* 坏 JSON 视同未生成 */ }
   let echoes: StoredEcho[] = [];
   try {
     const raw = row.echoes as string | undefined;
     if (raw) echoes = JSON.parse(raw);
   } catch { /* 坏 JSON 视同没有回响 */ }
+  const backbone = (JSON.parse(row.backbone as string) as BackboneNode[]).map((node) => ({
+    ...node,
+    anchorId: node.anchorId || semanticAnchorId(node.concept),
+  }));
+  const takeaways = JSON.parse(row.takeaways as string) as string[];
+  let dispatch = createArgumentDispatch({
+    coreQuestion: row.coreQuestion as string,
+    summary: row.summary as string,
+    nodes: backbone,
+    takeaways,
+    confidence: Number(row.templateConfidence || row.typeConfidence || 0),
+    reason: "phase0-argument-baseline",
+  });
+  try {
+    const downgrade = JSON.parse(String(row.downgrade || "{}"));
+    const template = ANALYSIS_TEMPLATES.includes(row.template as AnalysisTemplate)
+      ? (row.template as AnalysisTemplate)
+      : "argument";
+    const candidate: AnalysisDispatch = {
+      template,
+      confidence: Number(row.templateConfidence || 0),
+      downgrade: {
+        template: "argument",
+        reason: String(downgrade?.reason || "unsupported-or-incomplete-template"),
+      },
+      renderData: JSON.parse(String(row.renderData || "{}")),
+    };
+    if (
+      template === "argument" &&
+      !(candidate.renderData && "nodes" in candidate.renderData && candidate.renderData.nodes?.length)
+    )
+      throw new Error("empty argument renderData");
+    dispatch = candidate;
+  } catch { /* use normalized argument dispatch */ }
   return {
     assetId: row.assetId as string,
     coreQuestion: row.coreQuestion as string,
     videoType: row.videoType as string,
     typeConfidence: row.typeConfidence as number,
     summary: row.summary as string,
-    backbone: JSON.parse(row.backbone as string),
-    takeaways: JSON.parse(row.takeaways as string),
+    backbone,
+    takeaways,
+    dispatch,
     cognitiveExpansion,
+    commentHeat,
     echoes,
   };
 }
@@ -581,8 +665,10 @@ export interface ParsedVideo {
   coreQuestion: string;
   videoType: string;
   typeConfidence: number;
-  nodes: { id: string; label: string; role?: string; timestampText: string; detail: string; echo?: Echo }[];
+  dispatch: AnalysisDispatch;
+  nodes: { id: string; anchorId: string; label: string; role?: string; timestampText: string; detail: string; echo?: Echo }[];
   cognitiveExpansion?: CognitiveExpansion;
+  commentHeat?: CommentHeat;
 }
 
 export function getParsedVideo(id: string): ParsedVideo | null {
@@ -606,9 +692,17 @@ export function getParsedVideo(id: string): ParsedVideo | null {
     coreQuestion: analysis.coreQuestion,
     videoType: analysis.videoType,
     typeConfidence: analysis.typeConfidence,
+    dispatch: analysis.dispatch ?? createArgumentDispatch({
+      coreQuestion: analysis.coreQuestion,
+      summary: analysis.summary,
+      nodes: analysis.backbone,
+      takeaways: analysis.takeaways,
+      confidence: analysis.typeConfidence,
+    }),
     nodes: analysis.backbone.map((n, i) => ({
       // 管线落库的 id 可能是数字（JSON 无类型约束），归一成字符串才能和 URL 里的 nodeId 对上
       id: n.id != null && n.id !== "" ? String(n.id) : `${asset.id}-n${i + 1}`,
+      anchorId: n.anchorId || semanticAnchorId(n.concept),
       label: n.concept,
       role: n.role,
       timestampText: n.timestamp,
@@ -616,5 +710,6 @@ export function getParsedVideo(id: string): ParsedVideo | null {
       echo: echoByIndex.get(i),
     })),
     cognitiveExpansion: analysis.cognitiveExpansion,
+    commentHeat: analysis.commentHeat,
   };
 }

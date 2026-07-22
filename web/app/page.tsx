@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CATEGORY_LIST, COLLECTIONS } from "@/lib/data";
 import { WORLD_SCENE } from "@/lib/map-config";
 import type { WorldRegionId } from "@/lib/map-scene/schema";
@@ -80,6 +81,9 @@ export default function WorldMapPage() {
         <div className="worldMasthead__input">
           <HeroInput compact />
         </div>
+        <Link className="worldMasthead__samples" href="/samples">
+          示例 · 五模板
+        </Link>
       </header>
 
       <section className="mapSceneSection mapSceneSection--world" aria-label="世界地图">

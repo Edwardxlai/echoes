@@ -2,7 +2,7 @@ import {
   listCollections, listAssetsByCollection, getAnalysis, saveSynthesis,
 } from "@/lib/server/store";
 import {
-  generateSynthesis, runCollectionGapFill, runCollectionExtend,
+  generateSynthesis, runCollectionGapFill,
   type SynthesisInputVideo, type AnalysisResult,
 } from "@/lib/server/pipeline";
 
@@ -42,11 +42,9 @@ export async function POST(request: Request) {
     try {
       const synthesis = await generateSynthesis(videos);
       saveSynthesis(col.id, synthesis);
-      // 合集补缺/延伸各自独立分层：失败不影响已存的合成结果
+      // 合集补缺独立分层：失败不影响已存的合成结果。
       try { await runCollectionGapFill(col.id, videos, synthesis.seriesQuestion); }
       catch { /* 无合集补缺 */ }
-      try { await runCollectionExtend(col.id, videos, synthesis.seriesQuestion); }
-      catch { /* 无合集延伸 */ }
       results.push({ collectionId: col.id, name: col.name, points: synthesis.points.length });
     } catch (e) {
       results.push({ collectionId: col.id, name: col.name, error: (e as Error).message });

@@ -4,6 +4,8 @@
    重排进 Category/Collection/Video/Node/Echo/Synthesis/CognitiveExpansion。
    ================================================================ */
 
+import { semanticAnchorId } from "./semantic-anchor";
+
 export type VideoType = "argument" | "narrative" | "intro" | "compare" | "concept";
 
 export const VIDEO_TYPE_LABEL: Record<VideoType, string> = {
@@ -15,6 +17,9 @@ export const VIDEO_TYPE_LABEL: Record<VideoType, string> = {
 };
 
 export interface Echo {
+  /** 当前内容锚点 ↔ 目标内容锚点；旧 seed 可缺席，存量迁移会回填。 */
+  sourceAnchorId?: string;
+  targetAnchorId?: string;
   targetTitle: string;
   targetVideoId?: string; // 有则可跳转；无则只做溯源展示，不裸跳
   creator: string;
@@ -28,6 +33,7 @@ export interface Echo {
 
 export interface Node {
   id: string;
+  anchorId: string;
   label: string;
   /** 节点在骨架中的环节名（"核心张力"/"论据"），左轨优先显示；缺席回落 timestampText。 */
   role?: string;
@@ -43,7 +49,6 @@ export interface CognitiveExpansion {
     focus?: string; // fill 里要划琥珀高亮的关键子串（须原样出现在 fill 中）
     searchTerms?: string[]; // 补缺·去搜：2~3 个可直接拿去抖音搜的关键词，引导用户自己往下补
   };
-  extend: { question: string; hint: string; voices: number }[]; // 开放问题 + 同题讨论门口人数（讨论区 P2 前为种子数）
 }
 
 /** 合集级补缺（往旁看）：整组共同绕开的相邻维度。与单视频补缺不同，也不重复各视频已补的内容。 */
@@ -52,13 +57,6 @@ export interface CollectionGapFill {
   fill: string;
   focus?: string; // fill 里要划琥珀高亮的关键子串
   searchTerms?: string[]; // 2~3 个可直接拿去抖音搜的关键词
-}
-
-/** 合集级延伸：整组作为整体共同引出、单条视频够不着的开放议题。不重复各视频已问过的延伸。
-    voices（同题讨论门口人数）在读取层补 0——讨论区 P2 前恒为种子数。 */
-export interface CollectionExtendItem {
-  question: string;
-  hint: string;
 }
 
 /** Map-relevant business truth. Presentation details stay in map-config.ts. */
@@ -133,8 +131,12 @@ export interface Category {
   mapItemId: string;
 }
 
-const nodesOf = (videoId: string, list: Omit<Node, "id">[]): Node[] =>
-  list.map((n, i) => ({ ...n, id: `${videoId}-n${i + 1}` }));
+const nodesOf = (videoId: string, list: Omit<Node, "id" | "anchorId">[]): Node[] =>
+  list.map((n, i) => ({
+    ...n,
+    id: `${videoId}-n${i + 1}`,
+    anchorId: semanticAnchorId(n.label),
+  }));
 
 export const VIDEOS: Record<string, Video> = {
   v1: {
@@ -203,21 +205,11 @@ export const VIDEOS: Record<string, Video> = {
     ]),
     cognitiveExpansion: {
       gapFill: {
+        gap: "货币流通速度才是让「印钱」与「涨价」脱钩的关键变量。",
+        fill: "货币流通速度衡量每一单位货币在一定时期内参与交易的平均次数。若货币增发但流通速度下降（如钱被存起来），总购买力可能不变，物价就不会涨。2008 年后中国 M2 大增但 CPI 低迷，正是货币沉淀、流通速度骤降的典型。",
+        focus: "货币沉淀、流通速度骤降",
+        searchTerms: ["货币流通速度", "流动性陷阱", "货币乘数"],
       },
-      extend: [
-        {
-          question:
-            "如果通胀是「隐形的再分配」，那「温和通胀有益」这个主流共识，究竟站在谁的立场上？",
-          hint: "视频点破了通胀让持币者受损、负债者受益，却没往下问：既然有输有赢，「2% 温和通胀是健康的」到底替谁说话——央行、作为最大债务人的政府、还是储户？换个立场，结论可能就反过来。",
-          voices: 3,
-        },
-        {
-          question:
-            "视频把「加息的代价」一笔带过。如果代价主要落在有房贷的普通人头上，那「加息抗通胀」本身算不算又一次再分配？",
-          hint: "抗通胀被讲成一个中性的技术操作，但它的账单有人付。顺着视频「谁为通胀买单」的逻辑追下去：抗通胀的过程，很可能制造了新一轮再分配。",
-          voices: 0,
-        },
-      ],
     },
     mapItemId: "island-v1",
   },
@@ -249,14 +241,11 @@ export const VIDEOS: Record<string, Video> = {
     ]),
     cognitiveExpansion: {
       gapFill: {
+        gap: "加息加的是央行调控银行间资金成本的基准利率，但普通人更关心房贷利率怎么跟着涨。",
+        fill: "在中国，贷款市场报价利率（LPR）以中期借贷便利（MLF）利率为锚。央行提高 MLF 利率后，LPR 随之上升，从而带动房贷和企业贷款利率上行，实现政策利率向实体经济的传导。",
+        focus: "LPR 随之上升，从而带动房贷和企业贷款利率上行",
+        searchTerms: ["MLF", "LPR", "货币政策传导机制"],
       },
-      extend: [
-        {
-          question: "如果借钱变贵能压需求，那本身不靠借贷消费的人，加息对他们还有用吗？",
-          hint: "链条的每一环都假设「花钱靠借」，现金支付、无杠杆的群体几乎不在这条传导路径里——加息的效力天然不均匀。",
-          voices: 2,
-        },
-      ],
     },
     mapItemId: "island-v2",
   },
@@ -297,14 +286,11 @@ export const VIDEOS: Record<string, Video> = {
     ]),
     cognitiveExpansion: {
       gapFill: {
+        gap: "但「名义工资跑不赢物价」背后的机制——通胀如何一点一点吃掉你的购买力——才是真正让体感变冷的核心。",
+        fill: "通货膨胀率通常用消费者价格指数（CPI）衡量，当 CPI 涨幅超过名义工资涨幅时，每单位货币能买到的商品和服务就会减少。这个过程是持续且隐性的，不像工资单那样直观，所以人们往往在月底算账时才惊觉钱不够用。",
+        focus: "当 CPI 涨幅超过名义工资涨幅时，每单位货币能买到的商品和服务就会减少",
+        searchTerms: ["消费者价格指数", "实际工资", "购买力"],
       },
-      extend: [
-        {
-          question: "如果实际购买力常年负增长，「涨薪」这件事对雇主和雇员来说，各自意味着什么？",
-          hint: "雇主报出的涨幅是名义数字，员工体感的是购买力——同一个「涨薪 5%」，在双方的叙事里可能完全是两件事。",
-          voices: 0,
-        },
-      ],
     },
     mapItemId: "island-v3",
   },
@@ -345,18 +331,6 @@ export const VIDEOS: Record<string, Video> = {
     cognitiveExpansion: {
       gapFill: {
       },
-      extend: [
-        {
-          question: "如果瘟疫才是胜负手，为什么一千多年来大家更愿意记住「火烧赤壁」？",
-          hint: "比起「军队病倒了」，「一把火定乾坤」更有戏剧性、更适合传颂。历史记忆筛选掉了什么、留下了什么，本身就值得想。",
-          voices: 5,
-        },
-        {
-          question: "如果瘟疫才是常态，「天时地利人和」这套解释框架，是不是把偶然的军事细节过度浪漫化了？",
-          hint: "把胜负归给统帅的谋略和天命，比归给一场谁都无法预测的传染病，更符合叙事对「英雄」的需要。",
-          voices: 2,
-        },
-      ],
     },
     mapItemId: "island-v4",
   },
@@ -389,13 +363,6 @@ export const VIDEOS: Record<string, Video> = {
     cognitiveExpansion: {
       gapFill: {
       },
-      extend: [
-        {
-          question: "演义把军事神化、正史把治理落实——两种记录方式各自在为谁的期待服务？",
-          hint: "戏剧化的军事奇谋更好传播，制度性的治理成果更难被普通人感知，这本身就是一种筛选偏差。",
-          voices: 1,
-        },
-      ],
     },
     mapItemId: "island-v5",
   },
@@ -420,13 +387,6 @@ export const VIDEOS: Record<string, Video> = {
     cognitiveExpansion: {
       gapFill: {
       },
-      extend: [
-        {
-          question: "一个国家 GDP 涨、但环境损耗也在涨，这算「增长」还是「透支未来」？",
-          hint: "流量指标天然不扣损耗——GDP 能记录砍树卖木材的收入，记录不了森林消失的代价。",
-          voices: 0,
-        },
-      ],
     },
     mapItemId: "island-v6",
   },
@@ -450,13 +410,6 @@ export const VIDEOS: Record<string, Video> = {
     cognitiveExpansion: {
       gapFill: {
       },
-      extend: [
-        {
-          question: "如果加息同时压国内需求、又推高汇率，这两个效果对不同的人分别是好事还是坏事？",
-          hint: "出口商可能因汇率上升受损，进口消费者可能受益——同一个利率决策，在不同角色身上是相反的答案。",
-          voices: 2,
-        },
-      ],
     },
     mapItemId: "island-v7",
   },
@@ -498,18 +451,6 @@ export const VIDEOS: Record<string, Video> = {
     cognitiveExpansion: {
       gapFill: {
       },
-      extend: [
-        {
-          question: "「取代任务不取代人」成立的前提，是人能及时迁移到新任务。如果迁移速度跟不上呢？",
-          hint: "视频乐观的地方藏了个假设：被替代的人学得会新技能、找得到新岗位。一旦迁移摩擦很大，「重塑」对具体某个人来说，体感就等于「取代」。",
-          voices: 4,
-        },
-        {
-          question: "历史上那几次技术革命里，被淘汰的那代人，本人最后怎么样了？",
-          hint: "「长出更多新岗位」是宏观真话，但缺了微观：织布工、马车夫本人有没有等到红利。补上这段，才知道「重塑」对个体意味着什么。",
-          voices: 0,
-        },
-      ],
     },
     mapItemId: "island-v8",
   },
@@ -533,13 +474,6 @@ export const VIDEOS: Record<string, Video> = {
     cognitiveExpansion: {
       gapFill: {
       },
-      extend: [
-        {
-          question: "如果例行岗位先被顶掉，谁来决定「例行」的边界该划多宽？",
-          hint: "今天看起来需要现场判断的工作，可能只是因为还没被拆解成规则——「例行」不是天生固定的分类。",
-          voices: 1,
-        },
-      ],
     },
     mapItemId: "island-v9",
   },
@@ -598,13 +532,6 @@ export const COLLECTIONS: Record<string, Collection> = {
         fill: "通缩不是「通胀变小」，而是物价持续下跌、自我强化的另一套螺旋：企业利润缩水、居民推迟消费、债务的实际负担越滚越重，日本「失去的三十年」是最常被援引的样本——它也解释了央行为何宁愿容忍温和通胀，也要极力躲开通缩。",
         focus: "另一套螺旋",
       },
-      extend: [
-        {
-          question: "各国央行这轮激进加息，最后真把通胀压下来了吗？代价多大？",
-          hint: "三条视频讲清了成因机制，但缺一张「真实成绩单」：这轮加息到底是有效、还是运气（能源价格自己回落）？有没有换来衰退和失业？补上这块，机制才落到现实。",
-          voices: 3,
-        },
-      ],
     },
   },
   c2: {
@@ -649,13 +576,6 @@ export const COLLECTIONS: Record<string, Collection> = {
         fill: "官渡、夷陵这些关键战役同样在演义里被大幅戏剧化，而三国故事其实叠着三层文本：陈寿《三国志》的简笔正史、裴松之注补进的大量异闻、罗贯中《演义》的再创作。分清你读到的是哪一层，才知道哪些「常识」本就是叙事的产物。",
         focus: "三层文本",
       },
-      extend: [
-        {
-          question: "如果连赤壁都被戏剧化重写了，还有哪些「常识级」的历史结论，其实也是叙事筛选的产物？",
-          hint: "赤壁不是特例，是一个方法论：越有戏剧性的解释，越容易挤掉沉闷但更接近真相的那个。",
-          voices: 2,
-        },
-      ],
     },
   },
   c4: {
@@ -694,13 +614,6 @@ export const COLLECTIONS: Record<string, Collection> = {
         fill: "上世纪八十年代起，工业机器人在汽车、电子产线大规模上岗，结果既非「工人全下岗」也非「岗位原样保留」：总就业没崩，但岗位结构被劈成两头——高技能的调试运维和低薪的边角环节，中间的熟练工被掏空。这条「极化」曲线，正是判断 AI 这轮冲击的现成参照。",
         focus: "劈成两头",
       },
-      extend: [
-        {
-          question: "如果迁移速度是关键变量，什么样的社会/教育机制能加快个体的迁移速度？",
-          hint: "两条视频都没细讲「怎么迁移」，只讲了「要不要迁移」——这恰好是能补的那一半。",
-          voices: 6,
-        },
-      ],
     },
   },
 };

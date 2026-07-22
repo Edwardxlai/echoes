@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCategory, getCollection, videosOf } from "@/lib/data";
+import { getCollection, videosOf } from "@/lib/data";
 import { realCollectionDetail } from "@/lib/server/real-data";
-import { SynthesisPoints } from "@/components/reader/SynthesisPoints";
+import { KnowledgeMatrix } from "@/components/reader/KnowledgeMatrix";
+import { CollectionHeat } from "@/components/reader/CollectionHeat";
+import { CollectionThoughts } from "@/components/reader/CollectionThoughts";
 import { CognitiveExpansionBlock } from "@/components/reader/CognitiveExpansionBlock";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
+import { BackLink } from "@/components/nav/BackLink";
+import { mockEngagement } from "@/lib/server/engagement";
 
 export const dynamic = "force-dynamic";
 
@@ -12,13 +16,10 @@ export const dynamic = "force-dynamic";
    合集级 synthesis 由管线 L6 收尾生成；没生成出来就走"关联不够多"兜底。 */
 export default async function CollectionSynthesisPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ collectionId: string }>;
-  searchParams: Promise<{ from?: string }>;
 }) {
   const { collectionId } = await params;
-  const { from } = await searchParams;
 
   const seed = getCollection(collectionId);
   const real = seed ? null : realCollectionDetail(collectionId);
@@ -42,12 +43,7 @@ export default async function CollectionSynthesisPage({
         sourceUrl: real!.sourceUrl,
       };
 
-  // 返回键回到进来的那一级：从区域地图的「合集解析」进来（?from=region）就回区域，
-  // 默认（群岛页进来）回群岛。文字与目的地一致。
-  const category = getCategory(collection.categoryId);
-  const backToRegion = from === "region" && !!category;
-  const backHref = backToRegion ? `/category/${collection.categoryId}` : `/collection/${collectionId}`;
-  const backLabel = backToRegion ? `${category!.name}区域` : `${collection.name} · 群岛`;
+  const backHref = `/collection/${collectionId}`;
 
   const videos = seed
     ? videosOf(collectionId).map((v) => ({
@@ -55,6 +51,10 @@ export default async function CollectionSynthesisPage({
         title: v.title,
         duration: v.duration,
         echoCount: v.nodes.filter((n) => n.echo).length,
+        engagementHeat: (() => {
+          const metrics = mockEngagement(v.id);
+          return metrics.likeCount + metrics.collectCount;
+        })(),
         sourceUrl: v.sourceUrl,
       }))
     : real!.islands.map((v) => ({
@@ -62,6 +62,7 @@ export default async function CollectionSynthesisPage({
         title: v.title,
         duration: v.duration,
         echoCount: v.echoCount,
+        engagementHeat: v.engagementHeat,
         sourceUrl: v.sourceUrl || undefined,
       }));
 
@@ -69,9 +70,9 @@ export default async function CollectionSynthesisPage({
     <div className="doc">
       <BrandHomeLink className="readerBrand" />
       <div className="docNav">
-        <Link className="backlink" href={backHref}>
-          ← &nbsp;{backLabel}
-        </Link>
+        <BackLink className="backlink" href={backHref}>
+          ← &nbsp;返回
+        </BackLink>
         {collection.sourceUrl && (
           <span className="navR">
             <a
@@ -87,7 +88,7 @@ export default async function CollectionSynthesisPage({
         )}
       </div>
 
-      <h1 className="display">
+      <h1 className="display display--question">
         {collection.synthesis?.seriesQuestion ?? `${collection.name}：这组视频合起来在说什么？`}
       </h1>
       <div className="dmeta">
@@ -123,12 +124,14 @@ export default async function CollectionSynthesisPage({
         ))}
       </nav>
 
+      <CollectionHeat values={videos.map((v) => v.engagementHeat)} />
+
       <div className="sh">
         <span className="no">壹</span>
-        <span className="tt">知识点</span>
+        <span className="tt">关系棋盘</span>
       </div>
       {collection.synthesis ? (
-        <SynthesisPoints points={collection.synthesis.points} videoIds={videos.map((v) => v.id)} />
+        <KnowledgeMatrix points={collection.synthesis.points} videoIds={videos.map((v) => v.id)} />
       ) : (
         <p style={{ padding: "24px 0", color: "var(--ink-3)", fontSize: 14 }}>
           这组内容之间的跨视频关联还不够多，暂时生成不出知识点合成——单集解析仍然可用，见上方集数索引。
@@ -139,15 +142,25 @@ export default async function CollectionSynthesisPage({
         <>
           <div className="sh">
             <span className="no">贰</span>
-            <span className="tt">认知·拓展</span>
-            <span className="sub">该补上的，值得追问的</span>
+            <span className="tt">补缺</span>
+            <span className="sub">整组内容共同略过的背景</span>
           </div>
-          <CognitiveExpansionBlock
-            data={collection.cognitiveExpansion}
-            topicBase={`collection.${collectionId}`}
-          />
+          <CognitiveExpansionBlock data={collection.cognitiveExpansion} />
         </>
       )}
+
+      <div className="sh">
+        <span className="no">{collection.cognitiveExpansion ? "叁" : "贰"}</span>
+        <span className="tt">想法</span>
+      </div>
+      <CollectionThoughts
+        collectionId={collectionId}
+        collectionName={collection.name}
+        categoryId={collection.categoryId}
+        href={`/collection/${collectionId}/synthesis`}
+        episodeVideoIds={videos.map((v) => v.id)}
+        videoTitles={Object.fromEntries(videos.map((v) => [v.id, v.title]))}
+      />
 
       <div className="colophon">✦</div>
     </div>

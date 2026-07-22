@@ -145,6 +145,10 @@
 }
 /* 640 = 原 570 输入条 + 右侧独立搜索钮，保证输入框不因加钮变窄 */
 .worldMasthead__input{width:min(640px,100%);min-width:0}
+/* 示例入口：masthead 下的低调文字链，气质同解析页次要动作 */
+.worldMasthead__samples{margin-top:-8px;font-family:var(--sans);font-size:12px;letter-spacing:.04em;
+  color:var(--ink-3);text-decoration:none;transition:color .18s}
+.worldMasthead__samples:hover{color:var(--ink)}
 .worldMasthead .mapInputRow{
   grid-template-columns:minmax(0,1fr) auto;
   gap:8px;

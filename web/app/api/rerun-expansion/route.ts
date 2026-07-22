@@ -1,14 +1,14 @@
 import { getAnalysis, getAsset, listRecallSources, saveExpansion } from "@/lib/server/store";
 import { generateExpansion, type AnalysisResult } from "@/lib/server/pipeline";
 
-/* 开发用：只重跑 L4 认知拓展的「补缺（gap/fill）+ 延伸」，从已存的脉络分析生成，
+/* 开发用：只重跑 L4 补缺（gap/fill），从已存的脉络分析生成，
    不碰 backbone / 回响——避免 L1 重跑带来的类型漂移（rerun-analysis 才动 backbone）。
    ?asset=<id> 只跑单个；默认全量。逐条串行。 */
 export async function POST(request: Request) {
   const only = new URL(request.url).searchParams.get("asset");
   const results: {
     assetId: string; title: string;
-    gap?: boolean; extend?: number; error?: string;
+    gap?: boolean; error?: string;
   }[] = [];
 
   for (const src of listRecallSources("")) {
@@ -32,9 +32,8 @@ export async function POST(request: Request) {
         gapFill: exp.gap
           ? { gap: exp.gap, fill: exp.fill, ...(exp.searchTerms.length ? { searchTerms: exp.searchTerms } : {}) }
           : {},
-        extend: exp.extend.map((x) => ({ ...x, voices: 0 })),
       });
-      results.push({ assetId: src.assetId, title, gap: Boolean(exp.gap), extend: exp.extend.length });
+      results.push({ assetId: src.assetId, title, gap: Boolean(exp.gap) });
     } catch (e) {
       results.push({ assetId: src.assetId, title, error: (e as Error).message });
     }

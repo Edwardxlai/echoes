@@ -22,7 +22,7 @@ function displayRoles(nodes: Node[]): (string | undefined)[] {
   });
 }
 
-export function Spine({ nodes, videoId }: { nodes: Node[]; videoId?: string }) {
+export function Spine({ nodes }: { nodes: Node[] }) {
   const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set());
   const roles = displayRoles(nodes);
   const toggle = (id: string) =>
@@ -61,11 +61,7 @@ export function Spine({ nodes, videoId }: { nodes: Node[]; videoId?: string }) {
                   <FocusMark text={n.detail} focus={n.echo?.nodeFocus} />
                 </div>
                 {n.echo && (
-                  <EchoBlock
-                    echo={n.echo}
-                    topicId={videoId ? `video.${videoId}` : undefined}
-                    nodeId={n.id}
-                  />
+                  <EchoBlock echo={n.echo} />
                 )}
               </div>
             </div>

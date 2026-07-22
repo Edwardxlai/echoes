@@ -8,7 +8,7 @@ import {
 } from "@/lib/server/pipeline";
 
 /* 开发用：对已解析视频重跑 L1 脉络分析（PRD 变更摘要 #15：五类骨架，新增叙事类）。
-   backbone 换血后回响的 nodeIndex 与认知拓展全部失效，故 L5/L4 连带重跑；
+   backbone 换血后回响锚点与补缺全部失效，故 L5/L4 连带重跑；
    L3 大类归属不动——固定策展坐标红线，重跑不得让内容在地图上跳变。
    类型同理默认锁定：沿用已定 videoType，重跑只换骨架血不换类型（类型漂移遗留的修复）；
    ?retype=1 才重新判型（#15 那类骨架体系升级的迁移场景用）。
@@ -63,7 +63,6 @@ export async function POST(request: Request) {
         const exp = await generateExpansion(a);
         saveExpansion(src.assetId, {
           gapFill: exp.gap ? { gap: exp.gap, fill: exp.fill } : {},
-          extend: exp.extend.map((x) => ({ ...x, voices: 0 })),
         });
       } catch { /* 脉络照常可用 */ }
 

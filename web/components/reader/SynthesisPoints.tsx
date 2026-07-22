@@ -41,8 +41,9 @@ function displayLeads(facets: SynthesisFacet[]): (string | undefined)[] {
 type SrcRef = SynthesisPoint["sources"][number];
 
 /** 可展开要点轴：与单视频 Spine 同构（左轨档位｜墨点｜标题+展开正文）。
-    角标显示的是溯源视频在合集里的固定编号（dirNo），跨知识点一致。 */
-function FacetSpine({ facets, sources, dirNo }: {
+    角标显示的是溯源视频在合集里的固定编号（dirNo），跨知识点一致。
+    导出给 KnowledgeMatrix 的聚焦抽屉复用——两处渲染同一件事，不重写第二套。 */
+export function FacetSpine({ facets, sources, dirNo }: {
   facets: SynthesisFacet[]; sources: SrcRef[]; dirNo: (videoId: string) => number | undefined;
 }) {
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set());
@@ -66,7 +67,8 @@ function FacetSpine({ facets, sources, dirNo }: {
         const refIndexes = f.refs?.length ? f.refs : (f.ref != null ? [f.ref] : []);
         const refSources = refIndexes
           .map((ref) => sources[ref - 1])
-          .filter((source): source is SrcRef => Boolean(source));
+          .filter((source): source is SrcRef => Boolean(source))
+          .sort((a, b) => (dirNo(a.videoId) ?? 99) - (dirNo(b.videoId) ?? 99));
         return (
           <div
             key={i}
@@ -142,7 +144,6 @@ export function SynthesisPoints({ points, videoIds = [] }: { points: SynthesisPo
                   <Link className="src" key={s.videoId} href={`/video/${s.videoId}`}>
                     <i className="src-no">{dirNo(s.videoId) ?? "·"}</i>
                     <span className="src-t">{s.title}</span>
-                    {s.timestampText && <em className="src-ts">{s.timestampText}</em>}
                   </Link>
                 ))}
               </div>

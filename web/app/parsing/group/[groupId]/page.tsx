@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
+import { BackLink } from "@/components/nav/BackLink";
 
 /* 合集/多链接解析等待页：逐条展示组内每条视频的状态；
    解析完成的条目可直接进它的解析页（跨视频合成是后续里程碑，本页只是进度+入口）。 */
@@ -66,7 +67,7 @@ export default function GroupParsingPage() {
       <BrandHomeLink className="readerBrand" />
 
       <div className="docNav">
-        <Link className="backlink" href="/">← &nbsp;世界地图</Link>
+        <BackLink className="backlink" href="/">← &nbsp;返回</BackLink>
       </div>
       <h1 className="display">
         {assets

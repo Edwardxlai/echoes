@@ -1,17 +1,19 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCategory, getCollection, getVideo } from "@/lib/data";
 import {
   getAsset, getCollectionRow, getParsedVideo, isMappedRegionCategory, listCollections,
 } from "@/lib/server/store";
 import { MISC_COLLECTION, type CategoryId } from "@/lib/server/pipeline";
-import { resolveTopic, topicQuotePool } from "@/lib/server/discussion";
-import { Spine } from "@/components/reader/Spine";
+import { AnalysisRenderer } from "@/components/reader/AnalysisRenderer";
 import { CognitiveExpansionBlock } from "@/components/reader/CognitiveExpansionBlock";
 import { MoveControl, type MoveTargetCategory } from "@/components/reader/MoveControl";
-import { ThoughtComposer } from "@/components/reader/ThoughtComposer";
 import { FootprintTrack } from "@/components/reader/FootprintTrack";
+import { ThoughtBar } from "@/components/reader/ThoughtBar";
+import { CommentHeatmap } from "@/components/reader/CommentHeatmap";
 import { BrandHomeLink } from "@/components/brand/BrandHomeLink";
+import { BackLink } from "@/components/nav/BackLink";
+import { createArgumentDispatch } from "@/lib/analysis-contract";
+import { getSampleReader } from "@/lib/reader/sample-readers";
 
 const CONTINENT_IDS = ["eco", "his", "tech"] as const;
 
@@ -19,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 /* 数据源两层：种子数据（lib/data.ts，预烘焙兜底/演示）优先命中，
    miss 时查真实解析结果（store）。真实解析视频的回响挂在脉络节点上（L5），
-   认知拓展含补缺 + 延伸（L4）；生成失败时对应块缺席，不摆空壳。 */
+   L4 补缺生成失败时对应块缺席，不摆空壳。 */
 export default async function VideoPage({
   params,
 }: {
@@ -37,7 +39,11 @@ export default async function VideoPage({
       : null;
   const video = seed ?? parsed!;
   const cognitiveExpansion = seed ? seed.cognitiveExpansion : parsed!.cognitiveExpansion;
-  const echoCount = video.nodes.filter((n) => n.echo).length;
+  // Phase 1 五模板示例：命中样例视频时，用手工编排的模板 dispatch 覆盖脉络渲染。
+  const sample = getSampleReader(video.id);
+  const heat = parsed?.commentHeat ?? null;
+  const coreQuestion = sample?.coreQuestion ?? video.coreQuestion;
+  const echoCount = sample ? sample.echoCount : video.nodes.filter((n) => n.echo).length;
 
   const restParts = [video.creator, video.duration, `${video.nodes.length} 个节点`].filter(
     Boolean
@@ -65,9 +71,20 @@ export default async function VideoPage({
   const currentCategoryId =
     asset && isMappedRegionCategory(asset.bigCategoryId) ? asset.bigCategoryId : null;
 
-  // 讨论空间 = 这条视频自己（video.{id}），记想法的引原文池与讨论区共用一份逻辑
-  const topic = resolveTopic(`video.${video.id}`);
-  const quotePool = topic ? topicQuotePool(`video.${video.id}`) : [];
+  const categoryId = seed ? collection?.categoryId ?? "" : currentCategoryId ?? "";
+  const dispatch = parsed?.dispatch ?? createArgumentDispatch({
+    coreQuestion: video.coreQuestion,
+    nodes: video.nodes.map((node) => ({
+      id: node.id,
+      anchorId: node.anchorId,
+      concept: node.label,
+      role: node.role,
+      detail: node.detail,
+      timestamp: node.timestampText,
+    })),
+    confidence: video.typeConfidence,
+    reason: "seed-argument-migration",
+  });
 
   return (
     <div className="doc">
@@ -75,17 +92,31 @@ export default async function VideoPage({
       <FootprintTrack
         videoId={video.id}
         videoTitle={video.title}
-        categoryId={topic?.categoryId ?? ""}
+        categoryId={categoryId}
         collectionId={collection?.id}
         collectionTitle={collection?.name}
+        nodes={video.nodes.map((node) => ({
+          anchorId: node.anchorId,
+          label: node.label,
+          detail: node.detail,
+          ...(node.echo
+            ? {
+                echo: {
+                  targetAnchorId: node.echo.targetAnchorId,
+                  relation: node.echo.relation,
+                  text: node.echo.oldSay ?? node.echo.sentence ?? node.echo.targetTitle,
+                },
+              }
+            : {}),
+        }))}
       />
       <div className="docNav">
-        <Link
+        <BackLink
           className="backlink"
           href={collection ? `/collection/${collection.id}` : "/"}
         >
-          ← &nbsp;{collection ? `${collection.name} · 群岛` : "世界地图"}
-        </Link>
+          ← &nbsp;返回
+        </BackLink>
         <span className="navR">
           {video.sourceUrl && (
             <a
@@ -106,17 +137,10 @@ export default async function VideoPage({
               targets={moveTargets}
             />
           )}
-          <ThoughtComposer
-            videoId={video.id}
-            videoTitle={video.title}
-            categoryId={topic?.categoryId ?? ""}
-            href={`/video/${video.id}`}
-            quotePool={quotePool}
-          />
         </span>
       </div>
 
-      <h1 className="display display--question">{video.coreQuestion}</h1>
+      <h1 className="display display--question">{coreQuestion}</h1>
       <div className="dmeta">
         <span className="dtitle">《{video.title}</span>
         <span className="drest">
@@ -129,18 +153,32 @@ export default async function VideoPage({
         <span className="no">壹</span>
         <span className="tt">脉络</span>
       </div>
-      <Spine nodes={video.nodes} videoId={video.id} />
+      <AnalysisRenderer
+        dispatch={sample?.dispatch ?? dispatch}
+        nodes={sample?.nodes ?? video.nodes}
+      />
 
       {cognitiveExpansion && (
         <>
           <div className="sh">
             <span className="no">贰</span>
-            <span className="tt">认知·拓展</span>
-            <span className="sub">该补上的，值得追问的</span>
+            <span className="tt">补缺</span>
           </div>
-          <CognitiveExpansionBlock data={cognitiveExpansion} topicBase={`video.${video.id}`} />
+          <CognitiveExpansionBlock data={cognitiveExpansion} />
         </>
       )}
+
+      <div className="sh">
+        <span className="no">叁</span>
+        <span className="tt">想法</span>
+      </div>
+      {heat && <CommentHeatmap data={heat} />}
+      <ThoughtBar
+        videoId={video.id}
+        videoTitle={video.title}
+        categoryId={categoryId}
+        href={`/video/${video.id}`}
+      />
 
       <div className="colophon">✦</div>
     </div>
